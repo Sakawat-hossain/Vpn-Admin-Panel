@@ -51,40 +51,61 @@ class ConfigServer implements ShouldQueue
         // jika windows,tambahin wsl sebelum $sshpass
         $sshCmd = "$sshpass ssh -p $sshPort $vpsUsername@$ip -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=$sshTimeout -o LogLevel=QUIET";
         
+        // Region-aware provisioning script. China-based servers usually can't
+        // reach get.docker.com / Docker Hub, so we auto-detect that and fall
+        // back to the Aliyun installer + China registry mirrors; global servers
+        // take the fast direct path. The script is base64-encoded and piped to
+        // bash on the target to avoid all SSH quoting issues.
+        $provisionScript = <<<BASH
+#!/bin/bash
+set -e
+WG_HOST="$ip"
+
+# Detect a restricted network (e.g. China): can we reach Docker Hub quickly?
+CN=0
+if ! curl -s -o /dev/null --max-time 6 https://registry-1.docker.io/v2/; then CN=1; fi
+echo "region-check: CN=\$CN"
+
+# Install Docker if missing (use the Aliyun mirror when restricted).
+if ! command -v docker >/dev/null 2>&1; then
+  if [ "\$CN" = "1" ]; then
+    curl -fsSL https://get.docker.com | sh -s -- --mirror Aliyun
+  else
+    curl -fsSL https://get.docker.com | sh
+  fi
+fi
+systemctl enable --now docker >/dev/null 2>&1 || true
+
+# On restricted networks, add registry mirrors so image pulls succeed.
+if [ "\$CN" = "1" ]; then
+  mkdir -p /etc/docker
+  printf '%s' '{"registry-mirrors":["https://docker.m.daocloud.io","https://dockerproxy.com","https://docker.1panel.live","https://hub.rat.dev"]}' > /etc/docker/daemon.json
+  systemctl restart docker >/dev/null 2>&1 || true
+  sleep 4
+fi
+
+# Open ports on the host firewall (cloud security groups are separate).
+ufw allow 51820/udp >/dev/null 2>&1 || true
+ufw allow 51821/tcp >/dev/null 2>&1 || true
+
+# (Re)deploy wg-easy — idempotent.
+docker rm -f wg-easy >/dev/null 2>&1 || true
+docker pull ombapit/wg-easy >/dev/null 2>&1 || true
+docker run -d --name=wg-easy -e LANG=en -e WG_HOST="\$WG_HOST" -v ~/.wg-easy:/etc/wireguard -p 51820:51820/udp -p 51821:51821/tcp --cap-add=NET_ADMIN --cap-add=SYS_MODULE --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 --restart unless-stopped ombapit/wg-easy
+echo "provision done (CN=\$CN)"
+BASH;
+
+        $provisionB64 = base64_encode($provisionScript);
+
         $cmds = [
             [
-                // Install Docker only if it's not already present, then make
-                // sure the daemon is up (avoids re-running the installer).
-                'action' => "Install Docker",
-                'command' => "$sshCmd \"command -v docker >/dev/null 2>&1 || curl -sSL https://get.docker.com | sh; systemctl enable --now docker >/dev/null 2>&1; true\"",
+                // Whole provision (Docker install + mirrors + wg-easy) as one
+                // base64-piped script so quoting/region logic stays reliable.
+                'action' => "Provision server (region-aware: Docker + wg-easy)",
+                'command' => "$sshCmd \"echo $provisionB64 | base64 -d | bash\"",
             ],
             [
-                // Open WireGuard (51820/udp) and the wg-easy API (51821/tcp).
-                // Harmless if ufw is inactive. (Cloud firewalls/security groups
-                // may still need these ports opened in the provider console.)
-                'action' => "Open firewall ports",
-                'command' => "$sshCmd \"ufw allow 51820/udp >/dev/null 2>&1; ufw allow 51821/tcp >/dev/null 2>&1; true\"",
-            ],
-            [
-                // Idempotent: remove any old container, pull latest, run fresh.
-                'action' => "Deploy wg-easy",
-                'command' => "$sshCmd \"docker rm -f wg-easy >/dev/null 2>&1; docker pull ombapit/wg-easy >/dev/null 2>&1; docker run -d "
-                . "--name=wg-easy "
-                . "-e LANG=en "
-                . "-e WG_HOST=$ip "
-                . "-v ~/.wg-easy:/etc/wireguard "
-                . "-p 51820:51820/udp "
-                . "-p 51821:51821/tcp "
-                . "--cap-add=NET_ADMIN "
-                . "--cap-add=SYS_MODULE "
-                . "--sysctl net.ipv4.conf.all.src_valid_mark=1 "
-                . "--sysctl net.ipv4.ip_forward=1 "
-                . "--restart unless-stopped "
-                . "ombapit/wg-easy\"",
-            ],
-            [
-                // Only mark the deploy successful once the wg-easy API actually
-                // answers (waits up to ~60s for the container to come up).
+                // Only mark success once the wg-easy API actually answers (~60s).
                 'action' => "Verify wg-easy is reachable",
                 'command' => "$sshCmd \"curl -sf --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:51821/ >/dev/null\"",
             ],
