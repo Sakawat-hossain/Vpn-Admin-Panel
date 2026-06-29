@@ -1157,14 +1157,17 @@ function listCountries()
 {
     $options = [];
 
-    $endpoint = getenv('APP_URL') . "/assets/data/countries_v1.json";
-    $client = new \GuzzleHttp\Client();
-    $response = $client->request('GET', $endpoint);
-
-    $statusCode = $response->getStatusCode();
-    $content = json_decode($response->getBody(), true);
-    foreach ($content as $row) {
-        $options[$row['name']] = $row['name'];
+    // Read the bundled JSON directly from disk. (The old version fetched this
+    // over HTTP from APP_URL, which fails when config is cached — getenv('APP_URL')
+    // is empty — or when the server can't reach its own domain.)
+    $path = public_path('assets/data/countries_v1.json');
+    if (is_file($path)) {
+        $content = json_decode(file_get_contents($path), true) ?: [];
+        foreach ($content as $row) {
+            if (!empty($row['name'])) {
+                $options[$row['name']] = $row['name'];
+            }
+        }
     }
     return $options;
 }
