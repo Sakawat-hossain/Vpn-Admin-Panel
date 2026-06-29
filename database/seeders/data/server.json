@@ -1,0 +1,14 @@
+[
+	{
+		"country" : "Germany",
+		"state" : "Nuremberg",
+		"latitude" : "3.1412",
+		"longitude" : "55.2708",
+		"status" : 1,
+		"ip_address" : "38.180.79.202",
+		"recommended" : 1,
+		"is_premium" : 0,
+		"is_ovpn" : 0,
+		"ovpn_config" : 1
+	}
+]

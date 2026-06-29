@@ -1,0 +1,26 @@
+[
+	{
+		"id" : 1,
+		"name" : "Admin Admin",
+		"firstname" : "Admin",
+		"lastname" : "Admin",
+		"email" : "admin@wireguard.com",
+		"avatar" : "images\/avatars\/default.png",
+		"password" : "$2y$10$Y1jR.KZbe486V4LjNJsPKO3C3fmFnQAQLNLFpNEFwpehAjwuhw5F6",
+		"remember_token" : "6DblNBW7dHNtschFfVxODsHCHPIFsE55Tmr0dDL6rAnggOAPReHqJXnJlZag",
+		"created_at" : "2024-01-30 07:53:46.0",
+		"updated_at" : "2024-02-04 11:18:34.0"
+	},
+	{
+		"id" : 2,
+		"name" : "Admin Admin",
+		"firstname" : "Admin",
+		"lastname" : "Admin",
+		"email" : "support@billiongroup.net",
+		"avatar" : "images\/avatars\/default.png",
+		"password" : "$2y$10$eNDpdKv9S05spyqifxx0TO2MgP5hA1BjZza1E500qRnNyCYYEWeXe",
+		"remember_token" : null,
+		"created_at" : "2024-01-30 13:32:10.0",
+		"updated_at" : "2024-01-30 13:32:10.0"
+	}
+]

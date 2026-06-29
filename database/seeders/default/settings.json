@@ -1,0 +1,74 @@
+{
+  "general": {
+    "site_name": "billiongroup",
+    "site_url": "https://server.billiongroup.net",
+    "contact_email": "support@billiongroup.net",
+    "terms_of_service_link": null,
+    "date_format": "10",
+    "timezone": "America/New_York"
+  },
+  "media": {
+    "dark_logo": "images/dark-logo.jpg",
+    "light_logo": "images/light-logo.jpg",
+    "favicon": "images/favicon.jpg",
+    "social_image": "images/social-image.jpg"
+  },
+  "colors": {
+    "primary_color": "#0276FF",
+    "secondary_color": "#0064DB",
+    "third_color": "#061324",
+    "background_color": "#FAFBFF",
+    "dark_mode_primary_color": "#13151E",
+    "dark_mode_secondary_color": "#262E3E",
+    "dark_mode_third_color": "#262E3E",
+    "dark_mode_background_color": "#12151E"
+  },
+  "smtp": {
+    "status": 1,
+    "mailer": "smtp",
+    "host": "mail.privateemail.com",
+    "port": "587",
+    "username": "support@billiongroup.net",
+    "password": "your-smtp-password-here",
+    "encryption": "tls",
+    "from_email": "support@billiongroup.net",
+    "from_name": "billiongroup"
+  },
+  "actions": {
+    "email_verification_status": 1,
+    "registration_status": 1,
+    "gdpr_cookie_status": 1,
+    "blog_status": 1,
+    "contact_page": 1,
+    "features_page": 1,
+    "faqs_status": 1,
+    "language_menu_status": 1,
+    "force_ssl_status": 0,
+    "language_type": 0
+  },
+  "popup": {
+    "body": "<p style=\"text-align:center;\"><span style=\"color:#3498db;\"><strong><img></strong></span></p><h2 style=\"text-align:center;\"><span style=\"color:#3498db;\"><strong>What is Lorem Ipsum?</strong></span></h2><p style=\"text-align:center;\">Lorem Ipsum&nbsp;is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>",
+    "status": 0
+  },
+  "currency": {
+    "code": "USD",
+    "symbol": "$",
+    "position": "1"
+  },
+  "subscription": {
+    "about_to_expire_reminder": "3",
+    "expired_reminder": "3",
+    "delete_expired": "7"
+  },
+  "watermark": {
+    "position": "bottom-right",
+    "width": "90",
+    "height": "30",
+    "status": 0,
+    "logo": "images/watermark/kwSZxEeT3BDwcTH_1699724550.png"
+  },
+  "theme": {
+    "mode_default": "auto",
+    "mode_switcher": 0
+  }
+}

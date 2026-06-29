@@ -1,0 +1,25 @@
+/node_modules
+/public/hot
+/public/build
+/public/storage
+/storage/*.key
+/vendor/*
+.env
+.env.backup
+.env.production
+.env.*.local
+# Secret keys / credentials — never commit
+*.p8
+*.pem
+/storage/*.key
+auth.json
+google-service-account*.json
+GOOGLE_APPLICATION_CREDENTIALS*.json
+.composer.lock
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+**.DS_Store

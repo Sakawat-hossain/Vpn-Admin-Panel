@@ -1,0 +1,52 @@
+[
+	{
+		"id" : 1,
+		"lang" : "en",
+		"alias" : "password_reset",
+		"name" : "Reset Password",
+		"subject" : "Reset Password Notification",
+		"body" : "<figure class=\"table\"><table><tbody><tr><td><figure class=\"table\"><table><tbody><tr><td><figure class=\"table\"><table><tbody><tr><td><img class=\"image_resized\" style=\"width:35%;\" src=\"https:\/\/assets.unlayer.com\/stock-templates\/1706687787287-480574.png\" alt=\"image\"><\/td><\/tr><\/tbody><\/table><\/figure><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><h2 style=\"text-align:center;\"><strong>Forget password ?<\/strong><\/h2><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><h2>If you've lost your password or wish to reset it, use the link below to get started:<\/h2><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><strong>{{link}}<\/strong><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><h2><span style=\"background-color:rgb(255,255,255);color:rgb(69,80,86);\">We cannot simply send you your old password. A unique link to reset your password has been generated for you. To reset your password, click the following link and follow the instructions.<\/span><\/h2><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><a href=\"{{link}}\">Reset Your Password&nbsp;<\/a><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><figure class=\"table\"><table><tbody><tr><td><a href=\"https:\/\/www.facebook.com\/unlayer\"><img src=\"images\/image-3.png\" alt=\"Facebook\">&nbsp;<\/a><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><a href=\"https:\/\/twitter.com\/unlayerapp\"><img src=\"images\/image-1.png\" alt=\"Twitter\">&nbsp;<\/a><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><a href=\"https:\/\/www.linkedin.com\/company\/unlayer\/mycompany\/\"><img src=\"images\/image-2.png\" alt=\"LinkedIn\">&nbsp;<\/a><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><a href=\"https:\/\/www.instagram.com\/unlayer_official\/\"><img src=\"images\/image-4.png\" alt=\"Instagram\">&nbsp;<\/a><\/td><\/tr><\/tbody><\/table><\/figure><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td>&nbsp;<\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><figure class=\"table\"><table><tbody><tr><td>&nbsp;<\/td><\/tr><\/tbody><\/table><\/figure><\/td><\/tr><\/tbody><\/table><\/figure><figure class=\"table\"><table><tbody><tr><td><figure class=\"table\"><table><tbody><tr><td><img class=\"image_resized\" style=\"width:100%;\" src=\"images\/image-5.png\" alt=\"image\"><\/td><\/tr><\/tbody><\/table><\/figure><\/td><\/tr><\/tbody><\/table><\/figure><\/td><\/tr><\/tbody><\/table><\/figure>",
+		"shortcodes" : "{\n\"link\":\"Password reset link\",\n\"expiry_time\":\"Link expiry time\",\n\"website_name\":\"Your website name\"\n}",
+		"status" : 1
+	},
+	{
+		"id" : 3,
+		"lang" : "en",
+		"alias" : "email_verification",
+		"name" : "Email Verification",
+		"subject" : "Verify Email Address",
+		"body" : "<h2>Hello!<\/h2><p>Please click on the link below to verify your email address.<\/p><p><a href=\"{{link}}\">{{link}}<\/a><\/p><p>If you did not create an account, no further action is required.<\/p><p>&nbsp;<\/p><p>Regards,<br><strong>{{website_name}}<\/strong><\/p>",
+		"shortcodes" : "{\"link\":\"Email verification link\",\"website_name\":\"Your website name\"}",
+		"status" : 1
+	},
+	{
+		"id" : 4,
+		"lang" : "en",
+		"alias" : "subscription_about_expired",
+		"name" : "Subscription About To Expired Notification",
+		"subject" : "Your subscription is about to expire",
+		"body" : "<h2>Hi, <strong>{{username}}<\/strong><\/h2><p>We hope you're enjoying using our service. Just a friendly reminder that your subscription on <strong>{{plan}}<\/strong> plan is about to expire on <strong>{{expiry_date}}<\/strong>.<\/p><p>To continue receiving the benefits of our service, please renew your subscription before the expiration date. Simply follow the link below to access your account and renew:<\/p><p><a href=\"{{link}}\">{{link}}<\/a><\/p><p>Our team is always here to assist you with any questions or concerns.<\/p><p>Thank you for being a valued customer.<\/p><p>Best regards,<br><strong>{{website_name}}<\/strong><\/p>",
+		"shortcodes" : "{\"username\":\"User name\",\"plan\":\"Subscription plan name\",\"expiry_date\":\"Subscription expiry date\",\"link\":\"User Subscription page\",\"website_name\":\"Your website name\"}",
+		"status" : 1
+	},
+	{
+		"id" : 5,
+		"lang" : "en",
+		"alias" : "subscription_expired",
+		"name" : "Subscription Expired Notification",
+		"subject" : "Your subscription has been expired",
+		"body" : "<h2>Hi, <strong>{{username}}<\/strong><\/h2><p>I hope this email finds you well. We wanted to let you know that your subscription on <strong>{{plan}}<\/strong> plan has expired on <strong>{{expiry_date}}<\/strong>.<\/p><p>We understand that life can get busy, but we would love the opportunity to continue serving you. If you renew your subscription now, you'll be able to take advantage of all the benefits and services we have to offer.<\/p><p>Renewing your subscription is easy, simply log into your account and select the plan that works best for you, or by clicking on the link below. If you have any questions or concerns, please don't hesitate to reach out to our customer support team.<\/p><p><a href=\"{{link}}\">{{link}}<\/a><\/p><p>Please note that if you do not renew your subscription soon, it will be deleted permanently. We would hate to see you go, but if you do decide to let your subscription expire, please know that it has been a pleasure serving you.<\/p><p>Thank you for choosing us, and we hope to have the opportunity to serve you again soon.<\/p><p>Best regards,<br><strong>{{website_name}}<\/strong><\/p>",
+		"shortcodes" : "{\"username\":\"User name\",\"plan\":\"Subscription plan name\",\"expiry_date\":\"Subscription expiry date\",\"link\":\"User Subscription page\",\"website_name\":\"Your website name\"}",
+		"status" : 1
+	},
+	{
+		"id" : 6,
+		"lang" : "en",
+		"alias" : "subscription_deleted",
+		"name" : "Subscription Deleted Notification",
+		"subject" : "Your subscription has been deleted",
+		"body" : "<h2>Hi, <strong>{{username}}<\/strong><\/h2><p>We regret to inform you that your subscription on <strong>{{plan}}<\/strong> plan has been deleted due to its expiration.<\/p><p>We understand that you might still be interested in using our services, and we would be more than happy to welcome you back as a subscriber. If you have any questions or concerns, please don't hesitate to reach out to us.<\/p><p>Thank you for choosing us as your service provider, and we hope to have the opportunity to serve you again in the future.<\/p><p>Best regards,<br><strong>{{website_name}}<\/strong><\/p>",
+		"shortcodes" : "{\"username\":\"User name\",\"plan\":\"Subscription plan name\",\"website_name\":\"Your website name\"}",
+		"status" : 1
+	}
+]

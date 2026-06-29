@@ -1,0 +1,59 @@
+# Files & folders that should NOT be uploaded to the CyberPanel server.
+# (Reference list — SFTP/rsync don't read this automatically; use it to drive
+#  your exclude flags, or pass it to rsync with --exclude-from=.deployignore)
+
+# --- Dependencies (installed on the server via composer / built locally) ---
+# NOTE: leading slash = repo ROOT only, so the admin theme's public/assets/vendor
+# and any nested vendor/ folders are NOT excluded.
+/node_modules/
+/vendor/
+
+# --- Version control ---
+/.git/
+.gitignore
+.gitattributes
+
+# --- Local env / secrets (recreate .env directly on the server) ---
+.env
+.env.backup
+.env.production
+.env.*.local
+
+# --- Apple / Google credential keys (upload manually & separately, OUTSIDE webroot if possible) ---
+AuthKey_*.p8
+*.p8
+*.pem
+google-service-account*.json
+
+# --- Frontend source/build tooling (run `npm run build` locally, upload public/build only) ---
+postcss.config.js
+vite.config.js
+package.json
+package-lock.json
+yarn.lock
+
+# --- Tests / CI / dev tooling ---
+/tests/
+phpunit.xml
+.phpunit.result.cache
+.styleci.yml
+.editorconfig
+/.vscode/
+
+# --- Caches & logs (regenerated on server) ---
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*.log
+bootstrap/cache/*.php
+
+# --- Local-only helper scripts (optional; review before excluding) ---
+remote.sh
+laravel-worker.conf
+safer.json
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+npm-debug.log
+yarn-error.log

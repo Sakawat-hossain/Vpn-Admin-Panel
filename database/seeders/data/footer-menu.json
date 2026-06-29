@@ -1,0 +1,202 @@
+[
+	{
+		"id" : 1,
+		"name" : "Company",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : null,
+		"order" : 1,
+		"created_at" : "2023-02-06 00:20:43.0",
+		"updated_at" : "2023-02-06 00:32:39.0"
+	},
+	{
+		"id" : 2,
+		"name" : "About Us",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 1,
+		"order" : 1,
+		"created_at" : "2023-02-06 00:21:04.0",
+		"updated_at" : "2023-02-06 00:21:26.0"
+	},
+	{
+		"id" : 3,
+		"name" : "Careers",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 1,
+		"order" : 2,
+		"created_at" : "2023-02-06 00:21:21.0",
+		"updated_at" : "2023-02-06 00:32:58.0"
+	},
+	{
+		"id" : 4,
+		"name" : "Legal",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : null,
+		"order" : 2,
+		"created_at" : "2023-02-06 00:21:53.0",
+		"updated_at" : "2023-02-06 00:33:43.0"
+	},
+	{
+		"id" : 5,
+		"name" : "Privacy policy",
+		"link" : "\/privacy-policy",
+		"lang" : "en",
+		"parent_id" : 4,
+		"order" : 1,
+		"created_at" : "2023-02-06 00:22:03.0",
+		"updated_at" : "2023-02-11 03:47:39.0"
+	},
+	{
+		"id" : 6,
+		"name" : "Terms of use",
+		"link" : "\/terms-of-use",
+		"lang" : "en",
+		"parent_id" : 4,
+		"order" : 2,
+		"created_at" : "2023-02-06 00:22:16.0",
+		"updated_at" : "2023-02-11 03:47:48.0"
+	},
+	{
+		"id" : 7,
+		"name" : "Copyright Policy",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 4,
+		"order" : 4,
+		"created_at" : "2023-02-06 00:22:27.0",
+		"updated_at" : "2023-02-06 00:34:26.0"
+	},
+	{
+		"id" : 8,
+		"name" : "Contact Us",
+		"link" : "\/contact-us",
+		"lang" : "en",
+		"parent_id" : 1,
+		"order" : 3,
+		"created_at" : "2023-02-06 00:22:53.0",
+		"updated_at" : "2023-11-10 23:57:29.0"
+	},
+	{
+		"id" : 10,
+		"name" : "Press Room",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 1,
+		"order" : 4,
+		"created_at" : "2023-02-06 00:33:25.0",
+		"updated_at" : "2023-02-06 00:33:33.0"
+	},
+	{
+		"id" : 11,
+		"name" : "Cookies Policy",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 4,
+		"order" : 3,
+		"created_at" : "2023-02-06 00:34:06.0",
+		"updated_at" : "2023-02-06 00:34:11.0"
+	},
+	{
+		"id" : 12,
+		"name" : "Support",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : null,
+		"order" : 3,
+		"created_at" : "2023-02-06 00:34:49.0",
+		"updated_at" : "2023-02-06 00:35:22.0"
+	},
+	{
+		"id" : 13,
+		"name" : "Help Center",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 12,
+		"order" : 1,
+		"created_at" : "2023-02-06 00:35:02.0",
+		"updated_at" : "2023-02-06 00:35:22.0"
+	},
+	{
+		"id" : 14,
+		"name" : "Customer Service",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 12,
+		"order" : 2,
+		"created_at" : "2023-02-06 00:35:12.0",
+		"updated_at" : "2023-02-06 00:35:22.0"
+	},
+	{
+		"id" : 15,
+		"name" : "Frequently Asked Questions",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 12,
+		"order" : 3,
+		"created_at" : "2023-02-06 00:35:28.0",
+		"updated_at" : "2023-02-06 00:35:33.0"
+	},
+	{
+		"id" : 16,
+		"name" : "Report a Problem",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : 12,
+		"order" : 4,
+		"created_at" : "2023-02-06 00:35:49.0",
+		"updated_at" : "2023-02-06 00:35:53.0"
+	},
+	{
+		"id" : 17,
+		"name" : "Explore",
+		"link" : "\/page-example",
+		"lang" : "en",
+		"parent_id" : null,
+		"order" : 4,
+		"created_at" : "2023-02-06 00:36:27.0",
+		"updated_at" : "2023-02-06 00:38:22.0"
+	},
+	{
+		"id" : 18,
+		"name" : "Features",
+		"link" : "\/features",
+		"lang" : "en",
+		"parent_id" : 17,
+		"order" : 1,
+		"created_at" : "2023-02-06 00:37:52.0",
+		"updated_at" : "2023-02-11 03:12:43.0"
+	},
+	{
+		"id" : 19,
+		"name" : "Pricing",
+		"link" : "\/pricing",
+		"lang" : "en",
+		"parent_id" : 17,
+		"order" : 2,
+		"created_at" : "2023-02-06 00:38:04.0",
+		"updated_at" : "2023-02-11 03:12:34.0"
+	},
+	{
+		"id" : 20,
+		"name" : "Blog",
+		"link" : "\/blog",
+		"lang" : "en",
+		"parent_id" : 17,
+		"order" : 3,
+		"created_at" : "2023-02-06 00:38:14.0",
+		"updated_at" : "2023-02-11 03:12:26.0"
+	},
+	{
+		"id" : 21,
+		"name" : "FAQs",
+		"link" : "\/faqs",
+		"lang" : "en",
+		"parent_id" : 17,
+		"order" : 4,
+		"created_at" : "2023-02-20 00:18:46.0",
+		"updated_at" : "2023-02-20 00:18:52.0"
+	}
+]

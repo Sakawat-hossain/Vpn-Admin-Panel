@@ -1,0 +1,57 @@
+[
+	{
+		"id" : 1,
+		"name" : "Google reCAPTCHA",
+		"alias" : "google_recaptcha",
+		"logo" : "images\/extensions\/google-recaptcha.png",
+		"credentials" : "{\"site_key\":\"6LfeZ5sgAAAAAJwRlYneM5fzK5immQe5x4PL-UHA\",\"secret_key\":\"***REMOVED***\"}",
+		"instructions" : null,
+		"status" : 0,
+		"created_at" : "2022-02-24 02:40:12.0",
+		"updated_at" : "2024-02-01 12:17:48.0"
+	},
+	{
+		"id" : 2,
+		"name" : "Google Analytics 4",
+		"alias" : "google_analytics",
+		"logo" : "images\/extensions\/google-analytics.png",
+		"credentials" : "{\"measurement_id\":null}",
+		"instructions" : "<ul class=\"mb-0\"> \n<li>Enter google analytics 4 measurement ID, like <strong>G-12345ABC<\/strong><\/li> \n<\/ul>",
+		"status" : 0,
+		"created_at" : "2022-02-24 02:40:12.0",
+		"updated_at" : "2022-11-22 23:14:14.0"
+	},
+	{
+		"id" : 3,
+		"name" : "Tawk.to",
+		"alias" : "tawk_to",
+		"logo" : "images\/extensions\/tawk-to.png",
+		"credentials" : "{\"api_key\":null}",
+		"instructions" : "<ul class=\"mb-0\"> \r\n<li>https:\/\/tawk.to\/chat\/<strong>API-KEY<\/strong><\/li> \r\n<\/ul>",
+		"status" : 0,
+		"created_at" : "2022-02-24 02:40:12.0",
+		"updated_at" : "2022-02-24 04:17:33.0"
+	},
+	{
+		"id" : 4,
+		"name" : "Facebook OAuth",
+		"alias" : "facebook_oauth",
+		"logo" : "images\/extensions\/facebook-oauth.png",
+		"credentials" : "{\"client_id\":null,\"client_secret\":null}",
+		"instructions" : "<ul class=\"mb-0\"> \n<li><strong>Redirect URL :<\/strong> [URL]\/login\/facebook\/callback<\/li> \n<\/ul>",
+		"status" : 0,
+		"created_at" : "2022-02-24 02:40:12.0",
+		"updated_at" : "2023-02-11 20:20:02.0"
+	},
+	{
+		"id" : 5,
+		"name" : "Trustip",
+		"alias" : "trustip",
+		"logo" : "images\/extensions\/trustip.png",
+		"credentials" : "{\"api_key\":null}",
+		"instructions" : "<p class=\"mb-2\">Trustip is used to prevent guests who use VPN and proxy from registering and from using the free service.<\/p>\r\n<p class=\"mb-0\">You can get you api key from <a href=\"https:\/\/trustip.io\/user\/subscriptions\" target=\"_blank\">https:\/\/trustip.io\/user\/subscriptions<\/a>.<\/p>",
+		"status" : 0,
+		"created_at" : "2022-02-24 02:40:12.0",
+		"updated_at" : "2023-09-29 16:25:45.0"
+	}
+]
