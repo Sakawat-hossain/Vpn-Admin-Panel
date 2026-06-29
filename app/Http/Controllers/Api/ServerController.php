@@ -65,7 +65,16 @@ class ServerController extends Controller
         $user->server_id = $server->id;
         $user->save();
 
-        // create client wg
+        // OpenVPN server: hand back the stored .ovpn config directly (no wg-easy).
+        if ($server->is_ovpn == 1) {
+            return response200([
+                'client_id' => 'ovpn' . $user->id,
+                'protocol' => 'openvpn',
+                'conf' => $server->ovpn_config,
+            ], __('Connection Success'));
+        }
+
+        // WireGuard server: provision a peer via wg-easy.
         $wg_id = "wg" . $user->id;
         $url = "http://$server->ip_address:51821/api/wireguard/client";
         $data = [
