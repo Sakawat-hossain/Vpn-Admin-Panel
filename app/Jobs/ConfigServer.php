@@ -53,26 +53,41 @@ class ConfigServer implements ShouldQueue
         
         $cmds = [
             [
+                // Install Docker only if it's not already present, then make
+                // sure the daemon is up (avoids re-running the installer).
                 'action' => "Install Docker",
-                'command' => "$sshCmd \"curl -sSL https://get.docker.com | sh\"",
+                'command' => "$sshCmd \"command -v docker >/dev/null 2>&1 || curl -sSL https://get.docker.com | sh; systemctl enable --now docker >/dev/null 2>&1; true\"",
             ],
             [
-                'action' => "Install Wg Easy",
-                'command' => "$sshCmd \"docker run -d "
+                // Open WireGuard (51820/udp) and the wg-easy API (51821/tcp).
+                // Harmless if ufw is inactive. (Cloud firewalls/security groups
+                // may still need these ports opened in the provider console.)
+                'action' => "Open firewall ports",
+                'command' => "$sshCmd \"ufw allow 51820/udp >/dev/null 2>&1; ufw allow 51821/tcp >/dev/null 2>&1; true\"",
+            ],
+            [
+                // Idempotent: remove any old container, pull latest, run fresh.
+                'action' => "Deploy wg-easy",
+                'command' => "$sshCmd \"docker rm -f wg-easy >/dev/null 2>&1; docker pull ombapit/wg-easy >/dev/null 2>&1; docker run -d "
                 . "--name=wg-easy "
                 . "-e LANG=en "
                 . "-e WG_HOST=$ip "
-                // . "-e PASSWORD=your-wg-easy-password-here "
                 . "-v ~/.wg-easy:/etc/wireguard "
                 . "-p 51820:51820/udp "
                 . "-p 51821:51821/tcp "
                 . "--cap-add=NET_ADMIN "
                 . "--cap-add=SYS_MODULE "
-                . "--sysctl=\"net.ipv4.conf.all.src_valid_mark=1\" "
-                . "--sysctl=\"net.ipv4.ip_forward=1\" "
+                . "--sysctl net.ipv4.conf.all.src_valid_mark=1 "
+                . "--sysctl net.ipv4.ip_forward=1 "
                 . "--restart unless-stopped "
-                . "ombapit/wg-easy\""
-            ]
+                . "ombapit/wg-easy\"",
+            ],
+            [
+                // Only mark the deploy successful once the wg-easy API actually
+                // answers (waits up to ~60s for the container to come up).
+                'action' => "Verify wg-easy is reachable",
+                'command' => "$sshCmd \"curl -sf --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:51821/ >/dev/null\"",
+            ],
         ];
 
         echo "\nStarting Wg-Easy installation\n";
