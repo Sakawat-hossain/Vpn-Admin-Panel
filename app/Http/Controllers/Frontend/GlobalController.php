@@ -79,10 +79,10 @@ class GlobalController extends Controller
             $name = $request->name;
             $email = $request->email;
             $subject = $request->subject;
-            $msg = allowBr($request->message);
+            $msg = allowBr(e($request->message));
             \Mail::send([], [], function ($message) use ($msg, $email, $subject, $name) {
                 $message->to(settings('general')->contact_email)
-                    ->from(env('MAIL_FROM_ADDRESS'), $name)
+                    ->from(config('mail.from.address'), $name)
                     ->replyTo($email)
                     ->subject($subject)
                     ->html($msg);

@@ -28,6 +28,30 @@ class UserLog extends Model
     ];
 
     /**
+     * Column lengths in user_logs; longer values (long city names, client-sent OS
+     * strings) are cut instead of failing the insert on strict MySQL.
+     */
+    private const MAX_LENGTHS = [
+        'ip' => 100,
+        'country' => 100,
+        'country_code' => 100,
+        'timezone' => 150,
+        'location' => 60,
+        'latitude' => 60,
+        'longitude' => 60,
+        'browser' => 60,
+        'os' => 60,
+    ];
+
+    public function setAttribute($key, $value)
+    {
+        if (isset(self::MAX_LENGTHS[$key]) && is_string($value)) {
+            $value = mb_substr($value, 0, self::MAX_LENGTHS[$key]);
+        }
+        return parent::setAttribute($key, $value);
+    }
+
+    /**
      * Relationships
      */
     public function user()

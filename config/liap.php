@@ -84,9 +84,13 @@ return [
     //   \Imdhemy\Purchases\Events\AppStore\InitialBuy::class => [
     //     \App\Listeners\AppStoreInitialBuy::class,
     //   ],
-    \Imdhemy\Purchases\Events\AppStore\Subscribed::class => [
-      \App\Listeners\AppStoreSubscribed::class,
-    ]
+    \Imdhemy\Purchases\Events\AppStore\Subscribed::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\DidRenew::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\Renewal::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\InteractiveRenewal::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\DidRecover::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\Refund::class => [\App\Listeners\SyncAppStoreSubscription::class],
+    \Imdhemy\Purchases\Events\AppStore\Revoke::class => [\App\Listeners\SyncAppStoreSubscription::class],
 
     /*
      |--------------------------------------------------------------------------

@@ -27,7 +27,7 @@ class FooterMenuController extends Controller
                 'active' => $language->name,
             ]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 
@@ -60,7 +60,7 @@ class FooterMenuController extends Controller
             }
             return back();
         }
-        $countLinks = FooterMenu::all()->count();
+        $countLinks = FooterMenu::count();
         $footerMenu = FooterMenu::create([
             'lang' => $request->lang,
             'name' => $request->name,

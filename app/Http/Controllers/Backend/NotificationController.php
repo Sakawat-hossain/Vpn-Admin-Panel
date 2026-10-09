@@ -10,7 +10,7 @@ class NotificationController extends Controller
     public function index()
     {
         $notifications = AdminNotification::orderbyDesc('id')->paginate(10);
-        $unreadNotificationsCount = AdminNotification::where('status', 0)->get()->count();
+        $unreadNotificationsCount = AdminNotification::where('status', 0)->count();
         return view('backend.notifications', ['notifications' => $notifications, 'unreadNotificationsCount' => $unreadNotificationsCount]);
     }
 

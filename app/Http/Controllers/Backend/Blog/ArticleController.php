@@ -24,7 +24,7 @@ class ArticleController extends Controller
             $articles = BlogArticle::where('lang', $language->code)->with(['blogCategory', 'admin', 'language'])->withCount('comments')->get();
             return view('backend.blog.articles.index', ['articles' => $articles, 'active' => $language->name]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

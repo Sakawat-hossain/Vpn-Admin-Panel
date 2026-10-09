@@ -22,7 +22,7 @@ class FeatureController extends Controller
             $features = Feature::where('lang', $language->code)->with('language')->get();
             return view('backend.others.features.index', ['features' => $features, 'active' => $language->name]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

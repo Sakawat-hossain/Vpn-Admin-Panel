@@ -19,7 +19,6 @@ class Localization
     {
         if (!@settings('actions')->language_type && session()->has('locale')) {
             App::setLocale(session('locale'));
-            App::setLocale(config('app.locale'));
         }
         return $next($request);
     }

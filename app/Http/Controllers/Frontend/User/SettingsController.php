@@ -121,6 +121,7 @@ class SettingsController extends Controller
             'password' => bcrypt($request->get('new-password')),
         ]);
         if ($update) {
+            $this->user()->rotateApiToken();
             toastr()->success(lang('Account password has been changed successfully', 'account'));
             return back();
         }

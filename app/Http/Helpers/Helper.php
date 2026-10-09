@@ -27,7 +27,7 @@ use Intervention\Image\Drivers\Gd\Driver;
 
 function demoMode()
 {
-    if (env('DEMO_MODE')) {
+    if (config('app.demo_mode')) {
         return true;
     }
     return false;
@@ -53,15 +53,14 @@ function userAuthInfo()
 
 function adminPath()
 {
-    return env('APP_ADMIN') ?? 'admin';
+    // Also called while the config files themselves load (session cookie name).
+    $path = app()->bound('config') ? config('app.admin_path') : env('APP_ADMIN');
+    return $path ?: 'admin';
 }
 
 function isAdminPath()
 {
-    if (str_contains(request()->path(), adminPath() . '/')) {
-        return true;
-    }
-    return false;
+    return request()->is(adminPath(), adminPath() . '/*');
 }
 
 function settings($key = null)
@@ -660,6 +659,32 @@ function setEnv($envKey, $envValue, $quote = false)
         $str = rtrim($str, "\n") . "\n" . $line . "\n";
     }
     file_put_contents($envFile, $str, LOCK_EX);
+    refreshConfigCacheLater();
+}
+
+/**
+ * With `php artisan config:cache` (deploy.sh), .env is no longer read at
+ * runtime, so settings saved through setEnv() would only apply after the next
+ * deploy. Rebuild the cache once, after the response has been sent.
+ */
+function refreshConfigCacheLater()
+{
+    static $scheduled = false;
+    if ($scheduled || !app()->configurationIsCached()) {
+        return;
+    }
+    $scheduled = true;
+    app()->terminating(function () {
+        // Don't let values putenv()'d earlier in this (long-lived) PHP worker
+        // shadow the freshly written .env while the cache is rebuilt.
+        \Illuminate\Support\Env::disablePutenv();
+        try {
+            \Illuminate\Support\Facades\Artisan::call('config:cache');
+        } catch (\Throwable $e) {
+            report($e);
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+        }
+    });
 }
 
 function removeSpaces($string)
@@ -863,7 +888,7 @@ function localizeOptions()
     if (@settings('actions')->language_type) {
         return [
             'prefix' => LaravelLocalization::setLocale(),
-            'middleware' => ['localize', 'localizationRedirect', 'localeSessionRedirect', 'UserStatusCheck', 'notInstalled'],
+            'middleware' => ['localize', 'localizationRedirect', 'localeSessionRedirect', 'UserStatusCheck'],
         ];
     } else {
         return [
@@ -929,9 +954,15 @@ function lang($key, $file = null, $lang = null)
             File::put($filePath, "<?php\n\nreturn [];\n");
         }
         $trans = include $filePath;
-        if (!array_key_exists(Str::slug($key, '_'), $trans)) {
+        if (is_array($trans) && !array_key_exists(Str::slug($key, '_'), $trans)) {
             $trans[Str::slug($key, '_')] = $key;
-            File::put($filePath, "<?php\n\nreturn " . var_export($trans, true) . ";\n");
+            // Write atomically: concurrent requests must never see a half-written file.
+            $tmp = $filePath . '.' . Str::random(8) . '.tmp';
+            File::put($tmp, "<?php\n\nreturn " . var_export($trans, true) . ";\n");
+            rename($tmp, $filePath);
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($filePath, true);
+            }
         }
     }
     return trans($file . '.' . Str::slug($key, '_'), [], $lang);

@@ -27,8 +27,8 @@ class UserController extends Controller
                 $unviewedUser->save();
             }
         }
-        $activeUsersCount = User::where('status', 1)->get()->count();
-        $bannedUserscount = User::where('status', 0)->get()->count();
+        $activeUsersCount = User::where('status', 1)->count();
+        $bannedUserscount = User::where('status', 0)->count();
 
         $plans = Plan::orderBy('name', 'asc')->get();
 
@@ -50,10 +50,20 @@ class UserController extends Controller
         $order_arr = $request->get('order');
         $search_arr = $request->get('search');
 
-        $columnIndex = $columnIndex_arr[0]['column']; // Column index
-        $columnName = $columnName_arr[$columnIndex]['data']; // Column name
-        $columnSortOrder = $order_arr[0]['dir']; // asc or desc
-        $searchValue = $search_arr['value']; // Search value
+        $columnIndex = (int) ($columnIndex_arr[0]['column'] ?? 0); // Column index
+        $columnName = $columnName_arr[$columnIndex]['data'] ?? 'id'; // Column name
+        $columnSortOrder = strtolower($order_arr[0]['dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $searchValue = (string) ($search_arr['value'] ?? ''); // Search value
+        // Only sort on known, table-qualified columns (users is joined with subscriptions/plans).
+        $sortable = [
+            'id' => 'users.id',
+            'name' => 'users.name',
+            'plan' => 'plans.name',
+            'email_status' => 'users.email_verified_at',
+            'account_status' => 'users.status',
+            'email_verified_at' => 'users.email_verified_at',
+        ];
+        $columnName = $sortable[$columnName] ?? 'users.id';
 
         // param plan
         $planparam = $columnName_arr[3]['search']['value'];
@@ -138,13 +148,14 @@ class UserController extends Controller
                 $account_status = '<span class="badge bg-danger">' . admin_lang('Banned') . '</span>';
             }
             $data_arr[] = array(
+                // The table builds HTML from these strings, so user-controlled values must be escaped.
                 "id" => $record->id,
-                "name" => $record->name,
+                "name" => e($record->name),
                 "subscription" => $subscription,
                 "plan_id" => $record->plan_id ? route('admin.plans.edit', $record->plan_id) : '',
-                "plan" => $record->plan,
-                "email" => $record->email,
-                "avatar" => $record->avatar,
+                "plan" => e($record->plan),
+                "email" => e($record->email),
+                "avatar" => e($record->avatar),
                 "email_verified_at" => $record->email_verified_at,
                 "email_status" => $email_status,
                 "account_status" => $account_status,
@@ -162,7 +173,7 @@ class UserController extends Controller
             "data" => $data_arr,
         );
 
-        echo json_encode($response);
+        return response()->json($response);
     }
 
     public function create()
@@ -215,11 +226,7 @@ class UserController extends Controller
             if (is_null($plan)) {
                 return response422(['plan' => [__(admin_lang('Plan not exists'))]]);
             }
-            if ($plan->interval == 1) {
-                $expiry_at = Carbon::now()->addMonth();
-            } else {
-                $expiry_at = Carbon::now()->addYear();
-            }
+            $expiry_at = $plan->periodEnd(Carbon::now());
             Subscription::create([
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
@@ -399,6 +406,7 @@ class UserController extends Controller
 
     public function getLogs(User $user, UserLog $userLog)
     {
+        abort_if((int) $userLog->user_id !== (int) $user->id, 404);
         $userLog['ip_link'] = route('admin.users.logsbyip', $userLog->ip);
         return response()->json($userLog);
     }

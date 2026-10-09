@@ -344,13 +344,14 @@
             dataType: "JSON",
             success: function (response) {
                 if ($.isEmptyObject(response.error)) {
-                    $('#ip').attr('href', response.ip_link).html(response.ip);
-                    $('#location').html(response.location);
-                    $('#timezone').html(response.timezone);
-                    $('#latitude').html(response.latitude);
-                    $('#longitude').html(response.longitude);
-                    $('#browser').html(response.browser);
-                    $('#os').html(response.os);
+                    // Log fields come from the client (e.g. "os"), so insert them as text.
+                    $('#ip').attr('href', response.ip_link).text(response.ip);
+                    $('#location').text(response.location);
+                    $('#timezone').text(response.timezone);
+                    $('#latitude').text(response.latitude);
+                    $('#longitude').text(response.longitude);
+                    $('#browser').text(response.browser);
+                    $('#os').text(response.os);
                     logModal.modal('show');
                 } else {
                     toastr.error(response.error);

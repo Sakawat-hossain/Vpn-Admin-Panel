@@ -27,7 +27,7 @@ class NavbarMenuController extends Controller
                 'active' => $language->name,
             ]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 
@@ -60,7 +60,7 @@ class NavbarMenuController extends Controller
             }
             return back();
         }
-        $countLinks = NavbarMenu::all()->count();
+        $countLinks = NavbarMenu::count();
         $navbarMenu = NavbarMenu::create([
             'lang' => $request->lang,
             'name' => $request->name,

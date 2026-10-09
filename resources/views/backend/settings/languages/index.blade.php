@@ -22,7 +22,7 @@
                             height="25">
                         <span>{{ $language->name }}</span>
                         <small
-                            class="text-muted">{{ env('DEFAULT_LANGUAGE') == $language->code ? admin_lang('(Default)') : '' }}</small>
+                            class="text-muted">{{ config('app.default_language') == $language->code ? admin_lang('(Default)') : '' }}</small>
                     </div>
                     <div class="buttons">
                         <a href="{{ route('admin.settings.languages.translates', $language->code) }}"
@@ -35,7 +35,7 @@
                             <i class="ti ti-edit"></i>
                             <span class="ms-2 d-none d-lg-inline">{{ admin_lang('Edit') }}</span>
                         </a>
-                        @if ($language->code != env('DEFAULT_LANGUAGE'))
+                        @if ($language->code != config('app.default_language'))
                             <form class="d-inline" action="{{ route('admin.settings.languages.destroy', $language->id) }}"
                                 method="POST">
                                 @method('DELETE')

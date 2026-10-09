@@ -2,7 +2,6 @@
 
 namespace App\Listeners;
 
-use App\Models\Plan;
 use App\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\Registered;
@@ -17,14 +16,17 @@ class CreateFreeSubscription
      */
     public function handle(Registered $event)
     {
-        $freePlan = Plan::free()->first();
+        $user = $event->user;
+        // Registration code paths may already have created the subscription.
+        if (Subscription::where('user_id', $user->id)->exists()) {
+            return;
+        }
+        $freePlan = freePlan();
         if ($freePlan) {
-            $user = $event->user;
-            $expiry_at = ($freePlan->interval == 1) ? Carbon::now()->addMonth() : Carbon::now()->addYear();
             $subscription = new Subscription();
             $subscription->user_id = $user->id;
             $subscription->plan_id = $freePlan->id;
-            $subscription->expiry_at = $expiry_at;
+            $subscription->expiry_at = $freePlan->periodEnd(Carbon::now());
             $subscription->save();
         }
     }

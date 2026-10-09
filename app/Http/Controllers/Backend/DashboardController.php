@@ -14,12 +14,13 @@ class DashboardController extends Controller
     public function index()
     {
         $widget['total_earnings'] = Transaction::paid()->sum('total');
-        $widget['total_users'] = User::all()->count();
-        $widget['current_month_earnings'] = Transaction::whereMonth('created_at', Carbon::now()->month)->paid()->sum('total');
-        $widget['current_month_users'] = User::whereMonth('created_at', Carbon::now()->month)->count();
+        $widget['total_users'] = User::count();
+        $monthStart = Carbon::now()->startOfMonth();
+        $widget['current_month_earnings'] = Transaction::where('created_at', '>=', $monthStart)->paid()->sum('total');
+        $widget['current_month_users'] = User::where('created_at', '>=', $monthStart)->count();
         $transactions = Transaction::paid()->orderbyDesc('id')->limit(6)->get();
         $users = User::orderbyDesc('id')->limit(6)->get();
-        $countUsersLogs = UserLog::where('created_at', '>=', Carbon::now()->startOfMonth())->get()->count();
+        $countUsersLogs = UserLog::where('created_at', '>=', $monthStart)->count();
         return view('backend.dashboard', [
             'widget' => $widget,
             'transactions' => $transactions,

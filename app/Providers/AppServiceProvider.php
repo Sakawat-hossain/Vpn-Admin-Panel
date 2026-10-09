@@ -126,16 +126,17 @@ class AppServiceProvider extends ServiceProvider
 
         }
 
-        if (isAdminPath()) {
-
-            view()->composer('*', function ($view) {
+        // Admin view data is bound to the admin views themselves (not to the URL
+        // seen at boot), so it is available however the app was booted.
+        {
+            view()->composer('backend.*', function ($view) {
                 $adminLanguages = Language::all();
                 $view->with('adminLanguages', $adminLanguages);
             });
 
             view()->composer('backend.includes.header', function ($view) {
                 $adminNotifications = AdminNotification::orderbyDesc('id')->limit(20)->get();
-                $unreadAdminNotifications = AdminNotification::where('status', 0)->get()->count();
+                $unreadAdminNotifications = AdminNotification::where('status', 0)->count();
                 $unreadAdminNotificationsAll = $unreadAdminNotifications;
                 if ($unreadAdminNotifications > 9) {
                     $unreadAdminNotifications = "9+";
@@ -149,7 +150,7 @@ class AppServiceProvider extends ServiceProvider
 
             view()->composer('backend.includes.sidebar', function ($view) {
                 $unviewedUsersCount = User::where('is_viewed', 0)->count();
-                $commentsNeedsAction = BlogComment::where('status', 0)->get()->count();
+                $commentsNeedsAction = BlogComment::where('status', 0)->count();
                 $unviewedSubscriptions = Subscription::where('is_viewed', 0)->count();
                 $unviewedTransactionsCount = Transaction::where('is_viewed', 0)->whereIn('status', [2, 3])->count();
                 $view->with([

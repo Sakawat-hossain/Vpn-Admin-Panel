@@ -46,8 +46,8 @@ class CouponController extends Controller
             'percentage' => ['required', 'integer', 'min:1', 'max:100'],
             'limit' => ['required', 'integer', 'min:1'],
             'plan' => ['required', 'integer', 'min:0'],
-            'action_type' => ['required', 'integer', 'min:0', 'max:3', 'max:3'],
-            'expiry_at' => ['required', 'required'],
+            'action_type' => ['required', 'integer', 'min:0', 'max:3'],
+            'expiry_at' => ['required', 'date'],
         ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -121,7 +121,7 @@ class CouponController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'limit' => ['required', 'integer', 'min:1'],
-            'expiry_at' => ['required', 'required'],
+            'expiry_at' => ['required', 'date'],
         ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {

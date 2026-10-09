@@ -58,6 +58,25 @@ class Plan extends Model
         return array_values(array_filter(array_map('trim', preg_split('/[,\s]+/', (string) $this->product_id))));
     }
 
+    /**
+     * End of one billing period that starts at $from
+     * (1: monthly, 2: yearly, 3: weekly, 4: half-yearly).
+     */
+    public function periodEnd(\DateTimeInterface $from): \Carbon\Carbon
+    {
+        $from = \Carbon\Carbon::instance($from);
+        switch ((int) $this->interval) {
+            case 2:
+                return $from->addYear();
+            case 3:
+                return $from->addWeek();
+            case 4:
+                return $from->addMonths(6);
+            default:
+                return $from->addMonth();
+        }
+    }
+
     public function scopeForGuests($query)
     {
         $query->where('is_free', 1)->where('login_require', 0);

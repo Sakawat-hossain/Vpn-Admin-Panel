@@ -5,6 +5,11 @@ use Illuminate\Support\Facades\Facade;
 return [
     'fast_api_key' => env('APP_FAST_API_KEY'),
 
+    // Read through config() (never env()) so they keep working after `php artisan config:cache`.
+    'admin_path' => env('APP_ADMIN', 'admin'),
+    'default_language' => env('DEFAULT_LANGUAGE', 'en'),
+    'demo_mode' => (bool) env('DEMO_MODE', false),
+
     // Plan every new account starts on and expired subscriptions fall back to.
     // Leave empty to use the first plan marked "free".
     'free_plan_id' => env('FREE_PLAN_ID', 13),

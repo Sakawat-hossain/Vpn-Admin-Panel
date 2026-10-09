@@ -75,7 +75,7 @@
                                                         <time
                                                             class="comment-time text-muted mb-2">{{ dateFormat($blogArticleComment->created_at) }}</time>
                                                     </div>
-                                                    <p class="comment-text mb-0 text-muted">{!! allowBr($blogArticleComment->comment) !!}</p>
+                                                    <p class="comment-text mb-0 text-muted">{!! allowBr(e($blogArticleComment->comment)) !!}</p>
                                                 </div>
                                             </div>
                                         </div>

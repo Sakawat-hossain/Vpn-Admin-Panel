@@ -33,9 +33,9 @@ class TransactionController extends Controller
         ];
         $canceledAmountQuery = Transaction::cancelled();
         $canceledAmount = [
-            'total' => $canceledAmountQuery->sum('price'),
+            'total' => $canceledAmountQuery->sum('total'),
             'subscriptions' => $canceledAmountQuery->sum('price'),
-            'taxes' => $canceledAmountQuery->sum('price'),
+            'taxes' => $canceledAmountQuery->sum('tax'),
             'fees' => $canceledAmountQuery->sum('fees'),
         ];
         return view('backend.transactions.index', [

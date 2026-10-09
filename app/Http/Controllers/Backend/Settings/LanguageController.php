@@ -73,7 +73,7 @@ class LanguageController extends Controller
                     'sort_id' => $stortId,
                 ]);
                 if ($language) {
-                    $mailTemplates = MailTemplate::where('lang', env('DEFAULT_LANGUAGE'))->get();
+                    $mailTemplates = MailTemplate::where('lang', config('app.default_language'))->get();
                     foreach ($mailTemplates as $mailTemplate) {
                         $newMailTemplate = new MailTemplate();
                         $newMailTemplate->lang = $language->code;
@@ -115,7 +115,7 @@ class LanguageController extends Controller
                 return 0;
             }
         });
-        $defaultLanguage = trans($active, [], env('DEFAULT_LANGUAGE'));
+        $defaultLanguage = trans($active, [], config('app.default_language'));
         return view('backend.settings.languages.translate', [
             'active' => $active,
             'groups' => $groups,
@@ -128,6 +128,11 @@ class LanguageController extends Controller
     public function translateUpdate(Request $request, $id)
     {
         $language = Language::where('id', $id)->firstOrFail();
+        // The group names a file inside lang/<code>/ — never a path.
+        if (!is_string($request->group) || !preg_match('/^[A-Za-z0-9_-]+$/', $request->group) || !is_array($request->translates)) {
+            toastr()->error(admin_lang('Language group file not exists'));
+            return back();
+        }
         $languageGroupFile = base_path('lang/' . $language->code . '/' . $request->group . '.php');
         if (!file_exists($languageGroupFile)) {
             toastr()->error(admin_lang('Language group file not exists'));
@@ -137,7 +142,7 @@ class LanguageController extends Controller
         foreach ($request->translates as $key1 => $value1) {
             if (is_array($value1)) {
                 foreach ($value1 as $key2 => $value2) {
-                    if (!array_key_exists($key2, $value1)) {
+                    if (!is_array($translations[$key1] ?? null) || !array_key_exists($key2, $translations[$key1])) {
                         toastr()->error(admin_lang('Translations error'));
                         return back();
                     }
@@ -150,7 +155,7 @@ class LanguageController extends Controller
             }
         }
         $fileContent = "<?php \n return " . var_export($request->translates, true) . ";";
-        File::put($languageGroupFile, $fileContent);
+        File::put($languageGroupFile, $fileContent, true);
         toastr()->success(admin_lang('Updated Successfully'));
         return back();
     }
@@ -174,7 +179,7 @@ class LanguageController extends Controller
             return back()->withInput();
         }
         if (!$request->has('is_default')) {
-            if ($language->code == env('DEFAULT_LANGUAGE')) {
+            if ($language->code == config('app.default_language')) {
                 toastr()->error($language->name . ' ' . admin_lang('is default language'));
                 return back();
             }
@@ -202,7 +207,7 @@ class LanguageController extends Controller
 
     public function destroy(Language $language)
     {
-        if ($language->code == env('DEFAULT_LANGUAGE')) {
+        if ($language->code == config('app.default_language')) {
             toastr()->error(admin_lang('Default language cannot be deleted'));
             return back();
         }
@@ -334,7 +339,7 @@ class LanguageController extends Controller
     protected function createNewLanguageFiles($newLanguageCode)
     {
         try {
-            $defaultLanguage = env('DEFAULT_LANGUAGE');
+            $defaultLanguage = config('app.default_language');
             $langPath = base_path('lang/');
             if (!File::exists($langPath . $newLanguageCode)) {
                 File::makeDirectory($langPath . $newLanguageCode);

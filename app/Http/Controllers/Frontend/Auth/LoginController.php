@@ -138,7 +138,7 @@ class LoginController extends Controller
             return redirect()->route('login');
         }
         abort_if(!in_array($provider, $this->providers), 404);
-        abort_if(!env('FACEBOOK_CLIENT_ID') || !env('FACEBOOK_CLIENT_SECRET'), 404);
+        abort_if(!config('services.facebook.client_id') || !config('services.facebook.client_secret'), 404);
         return Socialite::driver($provider)->redirect();
     }
 
@@ -157,11 +157,15 @@ class LoginController extends Controller
                 try {
                     if ($exist) {
                         $user = User::find($exist->user_id);
+                        if (!$user || (int) $user->status === 0) {
+                            toastr()->error(lang('Your account has been blocked', 'auth'));
+                            return redirect()->route('login');
+                        }
                         $this->setLog($user);
                         Auth::login($user);
                         return redirect()->route('user.settings.index');
                     } else {
-                        if (!settings('actions')->email_verification_status) {
+                        if (!settings('actions')->registration_status) {
                             toastr()->error(lang('Registration is currently disabled.', 'auth'));
                             return redirect()->route('login');
                         }

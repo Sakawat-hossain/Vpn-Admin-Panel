@@ -34,7 +34,7 @@
                 </div>
                 <div class="mb-0 form-check">
                     <input class="form-check-input" type="checkbox" name="is_default" id="is_default"
-                        {{ env('DEFAULT_LANGUAGE') == $language->code ? 'checked' : '' }}>
+                        {{ config('app.default_language') == $language->code ? 'checked' : '' }}>
                     <label class="form-check-label" for="is_default">{{ admin_lang('Default language') }}</label>
                 </div>
             </div>

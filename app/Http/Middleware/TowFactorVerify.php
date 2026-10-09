@@ -17,8 +17,7 @@ class TowFactorVerify
      */
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::check() && userAuthInfo()->google2fa_status && !$request->session()->has('2fa') &&
-            session('2fa') != userAuthInfo()->id) {
+        if (Auth::check() && userAuthInfo()->google2fa_status && session('2fa') != userAuthInfo()->id) {
             return redirect()->route('2fa.verify');
         }
         return $next($request);

@@ -23,7 +23,7 @@ class PageController extends Controller
             $pages = Page::where('lang', $language->code)->with('language')->get();
             return view('backend.settings.pages.index', ['pages' => $pages, 'active' => $language->name]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

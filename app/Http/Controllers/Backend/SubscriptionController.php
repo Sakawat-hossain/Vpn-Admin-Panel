@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\RevokeWireGuardPeer;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -68,8 +69,10 @@ class SubscriptionController extends Controller
             }
             return back();
         }
-        $user = User::where('id', $request->user)->with('subscription')->firstOrFail();
-        if ($user->isSubscribed()) {
+        $user = User::where('id', $request->user)->with('subscription.plan')->firstOrFail();
+        // Every account starts on the free plan, so only a paid, active
+        // subscription blocks assigning a new one; a free one is replaced.
+        if ($user->hasPremiumAccess()) {
             toastr()->error(admin_lang('User already subscribed'));
             return back();
         }
@@ -78,17 +81,16 @@ class SubscriptionController extends Controller
             toastr()->error(admin_lang('Plan not exists'));
             return back();
         }
-        if ($plan->interval == 1) {
-            $expiry_at = Carbon::now()->addMonth();
-        } else {
-            $expiry_at = Carbon::now()->addYear();
-        }
-        $createSubscription = Subscription::create([
-            'user_id' => $user->id,
+        $subscription = $user->subscription ?: new Subscription(['user_id' => $user->id]);
+        $subscription->fill([
             'plan_id' => $plan->id,
-            'expiry_at' => $expiry_at,
+            'expiry_at' => $plan->periodEnd(Carbon::now()),
+            'status' => Subscription::STATUS_ACTIVE,
+            'about_to_expire_reminder' => false,
+            'expired_reminder' => false,
             'is_viewed' => 1,
         ]);
+        $createSubscription = $subscription->save();
         if ($createSubscription) {
             toastr()->success(admin_lang('Added successfully'));
             return back();
@@ -130,6 +132,7 @@ class SubscriptionController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => ['required', 'boolean'],
             'plan' => ['required', 'integer'],
+            'expiry_at' => ['required', 'date'],
         ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -145,6 +148,7 @@ class SubscriptionController extends Controller
             'status' => $request->status,
         ]);
         if ($updateSubscription) {
+            $this->revokePremiumServerAccessIfNeeded($subscription->fresh(['user.servers', 'plan']));
             toastr()->success(admin_lang('Updated successfully'));
             return back();
         }
@@ -158,8 +162,24 @@ class SubscriptionController extends Controller
      */
     public function destroy(Subscription $subscription)
     {
+        $user = $subscription->user()->with('servers')->first();
         $subscription->delete();
+        if ($user && $user->servers && $user->servers->isPremium()) {
+            RevokeWireGuardPeer::forUser($user);
+        }
         toastr()->success(admin_lang('Deleted successfully'));
         return back();
+    }
+
+    /**
+     * WireGuard configs keep working until the peer is removed, so cut premium
+     * server access right away when an admin downgrades or cancels.
+     */
+    private function revokePremiumServerAccessIfNeeded(Subscription $subscription): void
+    {
+        $user = $subscription->user;
+        if ($user && $user->servers && $user->servers->isPremium() && !$user->hasPremiumAccess()) {
+            RevokeWireGuardPeer::forUser($user);
+        }
     }
 }

@@ -22,7 +22,7 @@ class FaqController extends Controller
             $faqs = Faq::where('lang', $language->code)->get();
             return view('backend.others.faqs.index', ['faqs' => $faqs, 'active' => $language->name]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

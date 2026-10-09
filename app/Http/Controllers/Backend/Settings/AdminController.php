@@ -118,9 +118,7 @@ class AdminController extends Controller
             'email' => ['required', 'email', 'unique:admins,email,' . $admin->id],
         ]);
         if ($request->has('password') && $request->password != null) {
-            $validator = Validator::make($request->all(), [
-                'password' => ['min:8'],
-            ]);
+            $validator->addRules(['password' => ['string', 'min:8']]);
             $password = bcrypt($request->password);
         } else {
             $password = $admin->password;
@@ -162,6 +160,10 @@ class AdminController extends Controller
      */
     public function destroy(Admin $admin)
     {
+        if ($admin->id == adminAuthInfo()->id || Admin::count() <= 1) {
+            toastr()->error(admin_lang('You cannot delete your own account or the last admin'));
+            return back();
+        }
         $articles = BlogArticle::where('admin_id', $admin->id)->get();
         if ($articles->count() >= 1) {
             foreach ($articles as $article) {

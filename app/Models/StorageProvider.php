@@ -16,7 +16,7 @@ class StorageProvider extends Model
 
     public function isDefault()
     {
-        return $this->alias == env('FILESYSTEM_DRIVER');
+        return $this->alias == config('filesystems.default');
     }
 
     /**

@@ -21,7 +21,7 @@ class MailTemplateController extends Controller
                 'active' => $language->name,
             ]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

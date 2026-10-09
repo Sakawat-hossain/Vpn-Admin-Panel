@@ -24,7 +24,7 @@ class CategoryController extends Controller
             $categories = BlogCategory::where('lang', $language->code)->with('language')->get();
             return view('backend.blog.categories.index', ['categories' => $categories, 'active' => $language->name]);
         } else {
-            return redirect(url()->current() . '?lang=' . env('DEFAULT_LANGUAGE'));
+            return redirect(url()->current() . '?lang=' . config('app.default_language'));
         }
     }
 

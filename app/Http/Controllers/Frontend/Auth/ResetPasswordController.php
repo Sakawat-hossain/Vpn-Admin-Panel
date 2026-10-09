@@ -54,6 +54,19 @@ class ResetPasswordController extends Controller
      *
      * @return array
      */
+    /**
+     * Also invalidate the mobile-app token, so a reset locks out anyone who had it.
+     */
+    protected function resetPassword($user, $password)
+    {
+        $this->setUserPassword($user, $password);
+        $user->setRememberToken(\Illuminate\Support\Str::random(60));
+        $user->save();
+        $user->rotateApiToken();
+        event(new \Illuminate\Auth\Events\PasswordReset($user));
+        $this->guard()->login($user);
+    }
+
     protected function rules()
     {
         return [
