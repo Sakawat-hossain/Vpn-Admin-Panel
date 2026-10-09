@@ -22,14 +22,15 @@ class RazorpayController extends Controller
         $paymentName = "Payment for subscription " . $trx->plan->name . " Plan " . $planInterval;
         $gatewayFees = ($trx->total * paymentGateway('razorpay')->fees) / 100;
         $totalPrice = round(($trx->total + $gatewayFees), 2);
-        $priceIncludeFees = str_replace('.', '', ($totalPrice * 100));
+        $priceIncludeFees = (int) round($totalPrice * 100); // amount in the smallest currency unit
         try {
             $api = new Api(paymentGateway('razorpay')->credentials->key_id, paymentGateway('razorpay')->credentials->key_secret);
             $order = $api->order->create([
                 'receipt' => $trx->id,
                 'amount' => $priceIncludeFees,
                 'currency' => settings('currency')->code,
-                'payment_capture' => '0',
+                // Capture automatically; authorized-but-uncaptured payments are refunded by Razorpay.
+                'payment_capture' => 1,
             ]);
             $details = [
                 'key' => paymentGateway('razorpay')->credentials->key_id,
@@ -68,7 +69,7 @@ class RazorpayController extends Controller
                 return redirect()->route('user.settings.subscription');
             }
             $signature = hash_hmac('sha256', $request->razorpay_order_id . "|" . $request->razorpay_payment_id, paymentGateway('razorpay')->credentials->key_secret);
-            if ($signature == $request->razorpay_signature) {
+            if (is_string($request->razorpay_signature) && hash_equals($signature, $request->razorpay_signature)) {
                 $total = ($trx->total + $trx->fees);
                 $payment_gateway_id = paymentGateway('razorpay')->id;
                 $payment_id = $request->razorpay_payment_id;

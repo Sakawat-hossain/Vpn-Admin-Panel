@@ -50,6 +50,7 @@ Route::group(['prefix' => adminPath(), 'namespace' => 'Backend'], function () {
 
             Route::resource('servers', 'ServerController');
             Route::get('servers/{server}/deploy', 'ServerController@getDeployment')->middleware('ajax.only');
+            Route::post('servers/{server}/deploy', 'ServerController@deploy')->name('servers.deploy');
             Route::resource('subscriptions', 'SubscriptionController');
             Route::resource('transactions', 'TransactionController');
             Route::resource('plans', 'PlanController');

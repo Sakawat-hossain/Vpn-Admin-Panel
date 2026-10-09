@@ -9,6 +9,7 @@ use App\Models\PaymentGateway;
 use App\Models\Subscription;
 use App\Models\Transaction;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Validator;

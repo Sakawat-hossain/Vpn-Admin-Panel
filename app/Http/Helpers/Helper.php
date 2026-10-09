@@ -546,6 +546,19 @@ function timezonesArray()
     return $timezonesArr;
 }
 
+/**
+ * Extension derived from the file's content (not the client-supplied name),
+ * so an upload can never be stored as e.g. .php.
+ */
+function uploadExtension($file)
+{
+    $extension = strtolower((string) $file->guessExtension());
+    if ($extension === 'jpeg') {
+        $extension = 'jpg';
+    }
+    return preg_replace('/[^a-z0-9]/', '', $extension) ?: 'bin';
+}
+
 function imageUpload($file, $location, $size = null, $specificName = null, $old = null)
 {
     makeDirectory($location);
@@ -553,9 +566,9 @@ function imageUpload($file, $location, $size = null, $specificName = null, $old 
         removeFile($old);
     }
     if (!empty($specificName)) {
-        $filename = $specificName . '.' . $file->getClientOriginalExtension();
+        $filename = $specificName . '.' . uploadExtension($file);
     } else {
-        $filename = Str::random(15) . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::random(15) . '_' . time() . '.' . uploadExtension($file);
     }
     $manager = new Image(Driver::class);
     $image = $manager->read($file);
@@ -578,9 +591,9 @@ function fileUpload($file, $location, $specificName = null, $old = null)
         removeFile($old);
     }
     if (!empty($specificName)) {
-        $filename = $specificName . '.' . $file->getClientOriginalExtension();
+        $filename = $specificName . '.' . uploadExtension($file);
     } else {
-        $filename = Str::random(15) . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $filename = Str::random(15) . '_' . time() . '.' . uploadExtension($file);
     }
     $file->move($location, $filename);
     return $location . $filename;
@@ -632,18 +645,21 @@ function formatNumber($number)
 function setEnv($envKey, $envValue, $quote = false)
 {
     $envFile = app()->environmentFilePath();
-    $envValue = ($quote) ? '"' . $envValue . '"' : $envValue;
-    $str = file_get_contents($envFile);
-    $envValue = preg_replace('/\s+/', '', $envValue);
-    $str .= "\n";
-    $keyPosition = strpos($str, "{$envKey}=");
-    $endOfLinePosition = strpos($str, PHP_EOL, $keyPosition);
-    $oldLine = substr($str, $keyPosition, $endOfLinePosition - $keyPosition);
-    $str = str_replace($oldLine, "{$envKey}={$envValue}", $str);
-    $str = substr($str, 0, -1);
-    $fp = fopen($envFile, 'w');
-    fwrite($fp, $str);
-    fclose($fp);
+    // Never let a value break out onto a new line (that would inject other variables).
+    $envValue = str_replace(["\r", "\n"], '', (string) $envValue);
+    if ($quote || preg_match('/[\s#"\'\\\\$]/', $envValue)) {
+        $envValue = '"' . str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $envValue) . '"';
+    }
+    $line = "{$envKey}={$envValue}";
+
+    $str = file_exists($envFile) ? file_get_contents($envFile) : '';
+    $pattern = '/^' . preg_quote($envKey, '/') . '=.*$/m';
+    if (preg_match($pattern, $str)) {
+        $str = preg_replace_callback($pattern, fn () => $line, $str, 1);
+    } else {
+        $str = rtrim($str, "\n") . "\n" . $line . "\n";
+    }
+    file_put_contents($envFile, $str, LOCK_EX);
 }
 
 function removeSpaces($string)
@@ -1020,11 +1036,13 @@ function paymentGateway($alias)
     return $paymentGateway;
 }
 
-function curl_get_file_contents($URL)
+function curl_get_file_contents($URL, $timeout = 10)
 {
     $c = curl_init();
     curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($c, CURLOPT_URL, $URL);
+    curl_setopt($c, CURLOPT_CONNECTTIMEOUT, $timeout);
+    curl_setopt($c, CURLOPT_TIMEOUT, $timeout);
     $contents = curl_exec($c);
     curl_close($c);
     if ($contents) {
@@ -1170,4 +1188,34 @@ function listCountries()
         }
     }
     return $options;
+}
+/**
+ * The plan new accounts start on and expired subscriptions fall back to.
+ * Configured with FREE_PLAN_ID; falls back to the first plan marked free.
+ */
+function freePlan()
+{
+    $id = config('app.free_plan_id');
+    $plan = $id ? \App\Models\Plan::find($id) : null;
+    return $plan ?: \App\Models\Plan::where('is_free', 1)->orderBy('id')->first();
+}
+
+/**
+ * Generate a 6-digit numeric code with a cryptographically secure RNG.
+ */
+function generateVerificationCode()
+{
+    return (string) random_int(100000, 999999);
+}
+
+/**
+ * Whether accounts must verify their email before using the app/API.
+ */
+function emailVerificationRequired()
+{
+    try {
+        return (bool) (settings('actions')->email_verification_status ?? false);
+    } catch (\Throwable $e) {
+        return false;
+    }
 }

@@ -47,6 +47,17 @@ class Plan extends Model
         return $this->is_featured;
     }
 
+    /**
+     * Store product id(s) for this plan. product_id may hold several ids
+     * separated by commas (e.g. different App Store and Google Play ids).
+     *
+     * @return string[]
+     */
+    public function productIds(): array
+    {
+        return array_values(array_filter(array_map('trim', preg_split('/[,\s]+/', (string) $this->product_id))));
+    }
+
     public function scopeForGuests($query)
     {
         $query->where('is_free', 1)->where('login_require', 0);
@@ -91,6 +102,6 @@ class Plan extends Model
 
     public function transactions()
     {
-        return $this->hasMany(Subscription::class);
+        return $this->hasMany(Transaction::class);
     }
 }

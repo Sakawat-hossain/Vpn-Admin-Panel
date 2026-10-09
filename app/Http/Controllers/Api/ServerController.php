@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\WgEasyException;
 use App\Http\Controllers\Controller;
+use App\Jobs\RevokeWireGuardPeer;
 use App\Models\Server;
+use App\Models\User;
+use App\Services\WgEasyClient;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
-use Validator;
-use GuzzleHttp\Client;
 
 class ServerController extends Controller
 {
@@ -18,13 +19,7 @@ class ServerController extends Controller
      */
     public function index(Request $request)
     {
-        // $user = auth('api')->user();
-        // $free = $user->subscription->plan->is_free;
         $servers = Server::where('status', 1);
-
-        // if ($user->subscription->isExpired() || $free == 1) {
-        //     $servers->where('is_premium', 0);
-        // }
 
         // filter premium
         if ($request['is_premium'] == "0") {
@@ -37,6 +32,8 @@ class ServerController extends Controller
             $servers->where('recommended', 1);
         }
 
+        // ovpn_config / wg_password are hidden on the model; configs are only
+        // handed out by connect() to users entitled to the server.
         $servers = $servers->get();
         return response200($servers, __('Successfully retrieved servers data'));
     }
@@ -53,20 +50,27 @@ class ServerController extends Controller
     }
 
     /**
-     * post connect server
-     * 
+     * Connect the authenticated user to a server and return its client config.
+     *
      * @return JsonResponse
      */
-    public function connect(Server $server)
+    public function connect(Request $request, Server $server)
     {
-        $user = auth('api')->user();
+        $user = $request->user('api');
 
-        // update server_id
-        $user->server_id = $server->id;
-        $user->save();
+        if (!$server->isEnabled()) {
+            return responseError(404, __('This server is not available'));
+        }
+        if (!$user->canUseServer($server)) {
+            return responseError(403, __('A premium subscription is required for this server'));
+        }
 
-        // OpenVPN server: hand back the stored .ovpn config directly (no wg-easy).
-        if ($server->is_ovpn == 1) {
+        // OpenVPN server: hand back the stored .ovpn profile (no wg-easy involved).
+        if ($server->isOpenVpn()) {
+            if (trim((string) $server->ovpn_config) === '') {
+                return responseError(503, __('This server is not configured yet'));
+            }
+            $this->assignServer($user, $server);
             return response200([
                 'client_id' => 'ovpn' . $user->id,
                 'protocol' => 'openvpn',
@@ -74,43 +78,67 @@ class ServerController extends Controller
             ], __('Connection Success'));
         }
 
-        // WireGuard server: provision a peer via wg-easy.
-        $wg_id = "wg" . $user->id;
-        $url = "http://$server->ip_address:51821/api/wireguard/client";
-        $data = [
-            'name' => $wg_id
-        ];
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ];
-        $client = new Client();
-        $response = $client->post($url, [
-            'headers' => $headers,
-            'json' => $data,
-        ]);
-        $statusCode = $response->getStatusCode();
-
-        $resp = [];
-        if ($statusCode == 200) {
-            // get client config
-            $url = "http://$server->ip_address:51821/api/wireguard/client/$wg_id/$user->dns/configuration";
-            $headers = [
-                'Accept' => 'text/plain'
-            ];
-            $client = new Client();
-            $response = $client->get($url, [
-                'headers' => $headers,
-            ]);
-            $statusCode = $response->getStatusCode();
-            if ($statusCode == 200) {
-                $body = $response->getBody()->getContents();
-                $resp['client_id'] = $wg_id;
-                $resp['conf'] = $body;
-            }
+        // WireGuard server: (re)create this user's peer on wg-easy and return its config.
+        // Re-creating replaces the peer's keys, so only the most recently connected
+        // device keeps working.
+        $clientId = $user->wgClientName();
+        try {
+            $wg = WgEasyClient::for($server);
+            $wg->createClient($clientId);
+            $conf = $wg->getConfiguration($clientId, $this->dnsFor($user));
+        } catch (WgEasyException $e) {
+            report($e);
+            return responseError(502, __('Could not reach the VPN server, please try another server'));
         }
 
-        return response200($resp, __('Connection Success'));
+        $this->assignServer($user, $server);
+
+        return response200([
+            'client_id' => $clientId,
+            'protocol' => 'wireguard',
+            'conf' => $conf,
+        ], __('Connection Success'));
     }
 
+    /**
+     * Record the user's current server and free their peer on the previous one,
+     * so stale peers don't keep working or fill up the server's 253 addresses.
+     */
+    private function assignServer(User $user, Server $server): void
+    {
+        $previousServerId = $user->server_id;
+        $user->server_id = $server->id;
+        $user->save();
+
+        if ($previousServerId && (int) $previousServerId !== (int) $server->id) {
+            RevokeWireGuardPeer::forUser($user, (int) $previousServerId);
+        }
+    }
+
+    /**
+     * DNS server(s) written into the WireGuard config: the user's own setting
+     * when it is a valid IP list, otherwise the default.
+     */
+    private function dnsFor(User $user): string
+    {
+        $dns = trim((string) $user->dns);
+        if ($dns !== '' && self::isValidDnsList($dns)) {
+            return $dns;
+        }
+        return config('services.wg_easy.default_dns', '1.1.1.1');
+    }
+
+    public static function isValidDnsList(string $dns): bool
+    {
+        $parts = array_map('trim', explode(',', $dns));
+        if (count($parts) > 4) {
+            return false;
+        }
+        foreach ($parts as $part) {
+            if (!filter_var($part, FILTER_VALIDATE_IP)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

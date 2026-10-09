@@ -2,60 +2,43 @@
 
 namespace App\Http\Controllers\Api;
 
-use Illuminate\Support\Facades\Config;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\ProfileRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ResetPasswordRequest;
+use App\Jobs\RevokeWireGuardPeer;
 use App\Models\User;
 use App\Models\Subscription;
 use App\Models\Transaction;
-use App\Models\Plan;
 use App\Models\Server;
-use App\Models\Settings;
-use App\Notifications\ForgotPasswordNotification;
 use App\Models\UserLog;
 use Exception;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class AuthController extends Controller
 {
-    /**
-     * user repository
-     *
-     * @var UserRepository
-     */
-    // private UserRepository $userRepository;
+    /** Wrong verification-code guesses allowed per email before a cooldown. */
+    private const MAX_CODE_ATTEMPTS = 5;
+
+    /** Verification/reset emails allowed per email per window. */
+    private const MAX_CODE_SENDS = 3;
+
+    /** Failed logins allowed per email + IP per window. */
+    private const MAX_LOGIN_ATTEMPTS = 10;
+
+    private const LIMIT_WINDOW_SECONDS = 900;
 
     /**
-     * setting repository
-     *
-     * @var SettingRepository
+     * @var User
      */
-    // private SettingRepository $settingRepository;
-
-    /**
-     * emailservice
-     *
-     * @var EmailService
-     */
-    // private EmailService $emailService;
-
-    /**
-     * file service
-     *
-     * @var FileService
-     */
-    // private FileService $fileService;
+    private $usermodel;
 
     /**
      * constructor method
@@ -65,10 +48,35 @@ class AuthController extends Controller
     public function __construct()
     {
         $this->usermodel = new User();
-        // $this->userRepository    = new UserRepository;
-        // $this->settingRepository = new SettingRepository;
-        // $this->emailService      = new EmailService;
-        // $this->fileService       = new FileService;
+    }
+
+    public function createRegisterNotify($user)
+    {
+        $title = $user->name . ' ' . admin_lang('has registered');
+        $image = asset($user->avatar);
+        $link = route('admin.users.edit', $user->id);
+        return adminNotify($title, $image, $link);
+    }
+
+    public function createLog(Request $request)
+    {
+        $user = $request->user();
+        $info = ipInfo();
+
+        $newLoginLog = new UserLog();
+        $newLoginLog->user_id = $user->id;
+        $newLoginLog->ip = $info->ip;
+        $newLoginLog->country = $info->location->country;
+        $newLoginLog->country_code = $info->location->country_code;
+        $newLoginLog->timezone = $info->location->timezone;
+        $newLoginLog->location = $info->location->city . ', ' . $info->location->country;
+        $newLoginLog->latitude = $info->location->latitude;
+        $newLoginLog->longitude = $info->location->longitude;
+        $newLoginLog->browser = $info->system->browser;
+        $newLoginLog->os = Str::limit((string) $request->input('os'), 60, ''); // OS information from request body
+        $newLoginLog->save();
+
+        return response()->json(['message' => 'Log created successfully'], 201);
     }
 
     /**
@@ -78,7 +86,6 @@ class AuthController extends Controller
      * @return Response
      */
     /**
-        
     *    @OA\Post(
     *       path="/auth/login",
     *       tags={"login"},
@@ -93,60 +100,31 @@ class AuthController extends Controller
     *      ),
     *  )
     */
-    public function createRegisterNotify($user)
-    {
-        $title = $user->name . ' ' . admin_lang('has registered');
-        $image = asset($user->avatar);
-        $link = route('admin.users.edit', $user->id);
-        return adminNotify($title, $image, $link);
-    }
-
-    public function createLog(Request $request)
-    {
-        $user = $request->user();
-
-        $newLoginLog = new UserLog();
-        $newLoginLog->user_id = $user->id;
-        $newLoginLog->ip = ipInfo()->ip;
-        $newLoginLog->country = ipInfo()->location->country;
-        $newLoginLog->country_code = ipInfo()->location->country_code;
-        $newLoginLog->timezone = ipInfo()->location->timezone;
-        $newLoginLog->location = ipInfo()->location->city . ', ' . ipInfo()->location->country;
-        $newLoginLog->latitude = ipInfo()->location->latitude;
-        $newLoginLog->longitude = ipInfo()->location->longitude;
-        $newLoginLog->browser = ipInfo()->system->browser;
-        $newLoginLog->os = $request->input('os'); // Retrieve OS information from request body
-        $newLoginLog->save();
-
-        return response()->json(['message' => 'Log created successfully'], 201);
-    }
-    /**
-     * process login
-     *
-     * @param LoginRequest $request
-     * @return Response
-     */
-    // In your controller
     public function login(LoginRequest $request)
     {
+        $limiterKey = 'api-login:' . Str::lower($request->email) . '|' . $request->ip();
+        if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_LOGIN_ATTEMPTS)) {
+            return responseError(429, __('Too many login attempts. Please try again in :minutes minutes.', [
+                'minutes' => ceil(RateLimiter::availableIn($limiterKey) / 60),
+            ]));
+        }
+
         $user = $this->usermodel->where('email', $request->email)->first();
 
         if ($user && Hash::check($request->password, $user->password)) {
-            // Count active devices for the user
-            $activeDeviceCount = UserLog::where('user_id', $user->id)->count();
+            RateLimiter::clear($limiterKey);
 
-            // Fetch maximum active devices limit from the database
-            $maxActiveDevices = (int) Settings::selectSettings('max_active_devices');
+            if ($user->isBanned()) {
+                return responseError(403, __('Your account has been blocked'));
+            }
+            if (emailVerificationRequired() && is_null($user->email_verified_at)) {
+                return responseError(403, __('Please verify your email address first'), ['verification_required' => true]);
+            }
 
-            // if ($activeDeviceCount >= $maxActiveDevices) {
-            //     return response()->json([
-            //         'info' => __('You have reached the maximum number of active devices.')
-            //     ], 422);
-            // }
-
-            // Proceed with successful login
             return $this->handleLogin($user, __('Successfully entered the system'));
         }
+
+        RateLimiter::hit($limiterKey, self::LIMIT_WINDOW_SECONDS);
 
         // If email or password is incorrect
         return response()->json([
@@ -162,65 +140,54 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request)
     {
-        $verification_code = rand(100000, 999999);
+        $plan = freePlan();
+        if (is_null($plan)) {
+            return response422(['plan' => [__(admin_lang('Plan does not exist'))]]);
+        }
+
+        $verification_code = generateVerificationCode();
         // get random free server
         $server = Server::inRandomOrder()->where('status', 1)->where('is_premium', 0)->first();
-        $data = array_merge(
-            [
-                'password' => bcrypt($request->password),
-                'firstname' => "",
-                'lastname' => "",
-                'avatar' => "images/avatars/default.png",
-                'api_token' => hash('sha256', Str::random(60)),
-                'verification_code' => $verification_code,
-                'server_id' => $server->id ?? null,
-                'dns' => '1.1.1.1'
-            ],
-            $request->only(
-                [
-                    'name',
-                    'email'
-                ]
-            )
-        );
+        $data = [
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'firstname' => "",
+            'lastname' => "",
+            'avatar' => "images/avatars/default.png",
+            'api_token' => hash('sha256', Str::random(60)),
+            'verification_code' => $verification_code,
+            'verification_code_sent_at' => now(),
+            'server_id' => $server->id ?? null,
+            'dns' => config('services.wg_easy.default_dns', '1.1.1.1'),
+        ];
 
         DB::beginTransaction();
         try {
             $user = $this->usermodel->create($data);
-            // auto subs ke free plan
-            //$this->createLog($user);
             $this->createRegisterNotify($user);
-            $plan = Plan::find(13);// id plan must 13
-            if (is_null($plan)) {
-                return response422(['plan' => [__(admin_lang('Plan does not exist'))]]);
-            }
-            $expiry_at = Carbon::now();
-            $createSubscription = Subscription::create([
+            Subscription::create([
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
-                'expiry_at' => $expiry_at,
+                'expiry_at' => Carbon::now(),
                 'is_viewed' => 0,
             ]);
 
-            // sendmail
-            $email = $user->email;
-            $subject = "Verify Account";
-            $msg = __('Please input this code on apps to activate your account immediately.<br/>Verification Code: ' . $verification_code);
-            \Mail::send([], [], function ($message) use ($msg, $email, $subject) {
-                $message->to($email)
-                    ->subject($subject)
-                    ->html($msg);
-            });
+            $this->sendCodeMail($user->email, 'Verify Account', __('Please input this code on apps to activate your account immediately.') . '<br/>' . __('Verification Code') . ': ' . $verification_code);
 
             DB::commit();
-            return response200($user, __('Successfully registered and code sent to ' . $request->email));
-
         } catch (Exception $e) {
             DB::rollBack();
-            return response500(null, __($e->getMessage()));
+            report($e);
+            return response500(null, __('Registration failed, please try again.'));
         }
 
-        // return $this->handleLogin($user, __('Successfully registered and entered the system'));
+        // The verification code / token are hidden on the model. The token is only
+        // returned here when no email verification is required.
+        if (!emailVerificationRequired()) {
+            $user->makeVisible('api_token');
+        }
+        return response200($user, __('Successfully registered and code sent to ') . $request->email);
     }
 
     /**
@@ -231,22 +198,7 @@ class AuthController extends Controller
      */
     public function resendCode(ForgotPasswordRequest $request)
     {
-        $user = $this->usermodel->where('email', $request->email)->first();
-        $verification_code = rand(100000, 999999);
-        $userNew = $user->update([
-            'email_token' => Str::random(100),
-            'verification_code' => $verification_code
-        ]);
-        // sendmail
-        $email = $user->email;
-        $subject = "Verify Account";
-        $msg = __('Please input this code on your apps to activate your account immediately.<br/>Verification Code: ' . $verification_code);
-        \Mail::send([], [], function ($message) use ($msg, $email, $subject) {
-            $message->to($email)
-                ->subject($subject)
-                ->html($msg);
-        });
-        return response200(null, __('Successfully sent to ' . $request->email));
+        return $this->issueCode($request->email, 'Verify Account', __('Please input this code on your apps to activate your account immediately.'));
     }
 
     /**
@@ -257,33 +209,7 @@ class AuthController extends Controller
      */
     public function forgotPassword(ForgotPasswordRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $user = $this->usermodel->where('email', $request->email)->first();
-            $verification_code = rand(100000, 999999);
-            $userNew = $user->update([
-                'email_token' => Str::random(100),
-                'verification_code' => $verification_code
-            ]);
-
-            // sendmail
-            $email = $user->email;
-            $subject = "Forgot Password";
-            $msg = __('This is your Verification Code: ' . $verification_code);
-            \Mail::send([], [], function ($message) use ($msg, $email, $subject) {
-                $message->to($email)
-                    ->subject($subject)
-                    ->html($msg);
-            });
-
-            // $this->emailService->forgotPassword($userNew, true);
-            DB::commit();
-            return response200(null, __('Successfully sent to ' . $request->email));
-        } catch (Exception $e) {
-            return $e->getMessage();
-            DB::rollBack();
-            return response500(null, __('Failed to send email, please try again.'));
-        }
+        return $this->issueCode($request->email, 'Forgot Password', __('This is your Verification Code'));
     }
 
     /**
@@ -294,55 +220,22 @@ class AuthController extends Controller
      */
     public function verify(ForgotPasswordRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            $user = $this->usermodel->where('email', $request->email)->first();
-            if ($user->verification_code !== $request->verification_code) {
-                return response422([
-                    'verification_code' => [__('Incorrect Verification Code')]
-                ]);
-            }
-            $user->update([
-                'email_verified_at' => now(),
-                'email_token' => null,
-                'verification_code' => null
-            ]);
-
-
-            DB::commit();
-            $user = $this->usermodel->where('email', $request->email)->first();
-            return response200($user, __('Successfully verified!'));
-        } catch (Exception $e) {
-            return response500(null, __('Failed to verify account'));
+        $user = $this->usermodel->where('email', $request->email)->first();
+        if ($error = $this->checkCode($user, $request->verification_code)) {
+            return $error;
         }
-    }
 
-    /**
-     * checkCode
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function checkCode(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'verification_code' => 'required|min:6|max:6|exists:users,verification_code'
-        ]);
-        if ($this->settingRepository->loginMustVerified() === false)
-            abort(404);
-        $user = $this->userRepository->findByEmail($request->email);
-        if ($user === null) {
-            abort(404);
-        } else if ($user->verification_code !== $request->verification_code || $user->email_token === null) {
-            return response422([
-                'verification_code' => [__('Incorrect Verification')]
-            ]);
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'email_token' => null,
+            'verification_code' => null,
+            'verification_code_sent_at' => null,
+        ])->save();
+        if (empty($user->api_token)) {
+            $user->rotateApiToken();
         }
-        return response200([
-            'status' => true,
-            'verification_token' => $user->email_token
-        ], __('Kode verifikasi valid'));
+
+        return response200($user->fresh()->makeVisible('api_token'), __('Successfully verified!'));
     }
 
     /**
@@ -353,43 +246,23 @@ class AuthController extends Controller
      */
     public function resetPassword(ResetPasswordRequest $request)
     {
-        DB::beginTransaction();
-        try {
-            // $user = auth('api')->user();
-            $user = $this->usermodel->where('email', $request->email)->first();
-            if ($user->verification_code !== $request->verification_code) {
-                return response422([
-                    'verification_code' => [__('Incorrect Verification')]
-                ]);
-            }
-            // else if ($user->email_token !== $request->verification_token) {
-            //     return response422([
-            //         'email_token' => [__('Incorrect verification token entered.')]
-            //     ]);
-            // }
-            $userNew = $user->update([
-                'password' => bcrypt($request->new_password),
-                'email_token' => null,
-                'verification_code' => null
-            ]);
-            DB::commit();
-            $user = $this->usermodel->where('email', $request->email)->first();
-            return response200($user, __('Password updated successfully'));
-        } catch (Exception $e) {
-            return response500(null, __('Failed to update password, please try again.'));
+        $user = $this->usermodel->where('email', $request->email)->first();
+        if ($error = $this->checkCode($user, $request->verification_code)) {
+            return $error;
         }
-    }
 
-    /**
-     * logout from system
-     *
-     * @return Response
-     */
-    public function logout()
-    {
-        $user = auth('api')->user();
-        // auth('api')->logout();
-        return response200(null, __('Successfully exited the system'));
+        $user->forceFill([
+            'password' => bcrypt($request->new_password),
+            'email_token' => null,
+            'verification_code' => null,
+            'verification_code_sent_at' => null,
+            // Proving ownership of the mailbox also verifies it.
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ])->save();
+        // Log out every device that used the old token.
+        $user->rotateApiToken();
+
+        return response200($user->fresh()->makeVisible('api_token'), __('Password updated successfully'));
     }
 
     /**
@@ -401,28 +274,13 @@ class AuthController extends Controller
      */
     private function handleLogin(User $user, string $message)
     {
+        $token = $user->api_token ?: $user->rotateApiToken();
         $userdata = [
             "name" => $user->name,
             "email" => $user->email,
-            "token" => $user->api_token
+            "token" => $token
         ];
         return response200($userdata, $message);
-    }
-
-    /**
-     * Get the token array structure.
-     *
-     * @param  string $token
-     *
-     * @return array
-     */
-    protected function respondWithToken($token)
-    {
-        return [
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60
-        ];
     }
 
     /**
@@ -433,12 +291,10 @@ class AuthController extends Controller
     public function profile()
     {
         $user = auth('api')->user();
-        $user->subscription;
-        $user->subscription->plan;
-        $user->servers;
-        $user->logs;
-        return response200($user, __('Successfully retrieved user data'));
+        $user->load(['subscription.plan', 'servers', 'logs']);
+        return response200($user->makeVisible('api_token'), __('Successfully retrieved user data'));
     }
+
     /**
      * get list logs user
      *
@@ -450,56 +306,55 @@ class AuthController extends Controller
         $listLogs = $user->listLogs()->orderByDesc('id')->get();
         return response200($listLogs, __('Successfully retrieved user data'));
     }
+
     /**
-     * delete logs user 
+     * delete one of the authenticated user's logs
      *
-     * @param ProfileRequest $request
      * @return Response
      */
     public function deleteLogs(Request $request, $id)
     {
-        // Retrieve the logs for the given user ID
-        $userLogs = UserLog::where('id', $id);
-
-        // Check if logs exist
-        if (!$userLogs->exists()) {
+        $deleted = UserLog::where('id', $id)->where('user_id', $request->user('api')->id)->delete();
+        if (!$deleted) {
             return response()->json(['message' => 'User logs not found'], 404);
         }
 
-        // Delete the logs (soft delete if using soft deletes)
-        $userLogs->delete();
-
         return response()->json(['message' => 'User logs deleted successfully']);
     }
+
     /**
      * update profile user login
+     *
+     * Only the display name and DNS can be changed here; email, status, tokens,
+     * server assignment etc. are not user-editable.
      *
      * @param ProfileRequest $request
      * @return Response
      */
     public function updateProfile(ProfileRequest $request)
     {
-        $data = $request->all();
         $user = auth('api')->user();
+        $data = array_filter(
+            $request->only(['name', 'firstname', 'lastname', 'dns']),
+            fn ($value) => $value !== null
+        );
         $user->update($data);
         return response200($user, __('Successfully updated profile'));
     }
 
     /**
-     * delete profile user 
+     * delete the authenticated user's own account
      *
-     * @param ProfileRequest $request
      * @return Response
      */
     public function delete(Request $request, $id)
     {
-        $user = User::find($id);
-
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
+        $user = $request->user('api');
+        if ((string) $user->id !== (string) $id) {
+            return response()->json(['message' => 'You can only delete your own account'], 403);
         }
 
-        // Assuming you want to soft delete
+        RevokeWireGuardPeer::forUser($user);
         $user->delete();
 
         return response()->json(['message' => 'User deleted successfully']);
@@ -514,33 +369,14 @@ class AuthController extends Controller
     public function updatePassword(ProfileRequest $request)
     {
         $user = auth('api')->user();
-        $user->update([
-            'password' => bcrypt($request->new_password),
-            'last_password_change' => now(),
+        $user->forceFill(['password' => bcrypt($request->new_password)])->save();
+        // Invalidate every other session; this device gets the new token back.
+        $token = $user->rotateApiToken();
+        return response()->json([
+            'data' => true,
+            'token' => $token,
+            'message' => __('Successfully updated password'),
         ]);
-        return response200(true, __('Successfully updated password'));
-    }
-
-    /**
-     * logActivities user login
-     *
-     * @return JsonResponse
-     */
-    public function logActivities()
-    {
-        $data = $this->userRepository->getLogActivitiesPaginate(request('perPage'));
-        return response200($data, __('Successfully get activity log history'));
-    }
-
-    /**
-     * get setting
-     *
-     * @return JsonResponse
-     */
-    public function settings()
-    {
-        $data = $this->settingRepository->all();
-        return response200($data, __('Successfully retreived settings'));
     }
 
     /**
@@ -555,9 +391,10 @@ class AuthController extends Controller
         $subs->plan = $user->subscription->plan;
         return response200($subs, __('Successfully retrieved subscription data'));
     }
+
     /**
      * payment History
-     * 
+     *
      * @return JsonResponse
      */
     public function paymentHistory()
@@ -566,9 +403,10 @@ class AuthController extends Controller
         $transactions = Transaction::where('user_id', $user->id)->whereIn('status', [2, 3])->orderbyDesc('id')->paginate(5);
         return response200($transactions, __('Successfully retrieved subscription data'));
     }
+
     /**
      * post log
-     * 
+     *
      * @return JsonResponse
      */
     public function log()
@@ -577,4 +415,75 @@ class AuthController extends Controller
         return response200(true, __('Successfully inserted log'));
     }
 
+    /**
+     * Email a fresh 6-digit code (rate limited per address).
+     */
+    private function issueCode(string $email, string $subject, string $intro)
+    {
+        $limiterKey = 'api-code-send:' . Str::lower($email);
+        if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_CODE_SENDS)) {
+            return responseError(429, __('Too many codes requested. Please try again in :minutes minutes.', [
+                'minutes' => ceil(RateLimiter::availableIn($limiterKey) / 60),
+            ]));
+        }
+
+        $user = $this->usermodel->where('email', $email)->first();
+        $code = generateVerificationCode();
+        try {
+            $user->forceFill([
+                'email_token' => Str::random(100),
+                'verification_code' => $code,
+                'verification_code_sent_at' => now(),
+            ])->save();
+            $this->sendCodeMail($user->email, $subject, $intro . '<br/>' . __('Verification Code') . ': ' . $code);
+        } catch (Exception $e) {
+            report($e);
+            return response500(null, __('Failed to send email, please try again.'));
+        }
+
+        RateLimiter::hit($limiterKey, self::LIMIT_WINDOW_SECONDS);
+        RateLimiter::clear('api-code-attempts:' . Str::lower($email));
+
+        return response200(null, __('Successfully sent to ') . $email);
+    }
+
+    /**
+     * Validate an emailed code. Returns an error response, or null when valid.
+     * Codes expire after app.verification_code_ttl minutes, and only a few
+     * wrong guesses are allowed before a cooldown.
+     */
+    private function checkCode(?User $user, $code)
+    {
+        $limiterKey = 'api-code-attempts:' . Str::lower((string) optional($user)->email);
+        if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_CODE_ATTEMPTS)) {
+            return responseError(429, __('Too many attempts. Please request a new code.'));
+        }
+
+        $sentAt = optional($user)->verification_code_sent_at;
+        $expired = !$sentAt || $sentAt->lt(now()->subMinutes(config('app.verification_code_ttl', 30)));
+        $valid = $user
+            && !empty($user->verification_code)
+            && is_scalar($code)
+            && hash_equals((string) $user->verification_code, (string) $code);
+
+        if (!$valid) {
+            RateLimiter::hit($limiterKey, self::LIMIT_WINDOW_SECONDS);
+            return response422(['verification_code' => [__('Incorrect Verification Code')]]);
+        }
+        if ($expired) {
+            return response422(['verification_code' => [__('This code has expired. Please request a new one.')]]);
+        }
+
+        RateLimiter::clear($limiterKey);
+        return null;
+    }
+
+    private function sendCodeMail(string $email, string $subject, string $html): void
+    {
+        \Mail::send([], [], function ($message) use ($html, $email, $subject) {
+            $message->to($email)
+                ->subject($subject)
+                ->html($html);
+        });
+    }
 }

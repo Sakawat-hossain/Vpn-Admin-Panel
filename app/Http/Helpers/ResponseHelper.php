@@ -63,3 +63,16 @@ function response500($data = null, string $message = null)
         'message' => $message,
     ], 500);
 }
+
+/**
+ * Generic JSON error. Carries the text under both "message" and "info"
+ * (the key the mobile app already reads for login errors).
+ */
+function responseError(int $status, string $message, $data = null)
+{
+    return response()->json([
+        'data' => $data,
+        'message' => $message,
+        'info' => $message,
+    ], $status);
+}

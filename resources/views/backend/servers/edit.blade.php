@@ -86,6 +86,34 @@
             </div>
         </div>
     </form>
+    @if ($server->is_ovpn != 1)
+        <form action="{{ route('admin.servers.deploy', $server->id) }}" method="POST" class="mt-4">
+            @csrf
+            <div class="card p-2">
+                <div class="card-body">
+                    <h6 class="mb-1">{{ admin_lang('Redeploy wg-easy') }}</h6>
+                    <p class="text-muted small mb-3">
+                        {{ admin_lang('Reinstalls wg-easy on this server with an API password and a firewall that only lets the panel reach the API. Existing peers are kept. Run this once on servers deployed before this update.') }}
+                    </p>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">{{ admin_lang('SSH Port') }} : <span class="text-danger">*</span></label>
+                            <input type="number" name="ssh_port" class="form-control" value="22" min="1" max="65535" required/>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">{{ admin_lang('VPS Username') }} : <span class="text-danger">*</span></label>
+                            <input type="text" name="vps_username" class="form-control" value="root" required/>
+                        </div>
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label">{{ admin_lang('VPS Password') }} : <span class="text-danger">*</span></label>
+                            <input type="password" name="vps_password" class="form-control" autocomplete="new-password" required/>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary">{{ admin_lang('Redeploy') }}</button>
+                </div>
+            </div>
+        </form>
+    @endif
 @push('scripts_libs')
 <script>
   let g_country = '{{ $country = $server->country ?? old('country') }}'

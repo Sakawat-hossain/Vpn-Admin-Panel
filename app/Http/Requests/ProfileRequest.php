@@ -40,8 +40,14 @@ class ProfileRequest extends FormRequest
 
         
         return [
-            'name'   => 'nullable'
-            // 'email'  => 'required|email|unique:users,email,' . $userId . ',id'
+            'name'      => 'nullable|string|max:191',
+            'firstname' => 'nullable|string|max:50',
+            'lastname'  => 'nullable|string|max:50',
+            'dns'       => ['nullable', 'string', 'max:50', function ($attribute, $value, $fail) {
+                if (!\App\Http\Controllers\Api\ServerController::isValidDnsList($value)) {
+                    $fail(__('DNS must be one or more IP addresses separated by commas.'));
+                }
+            }],
         ];
     }
 }

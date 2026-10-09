@@ -11,17 +11,27 @@ class ValidateReceiptController extends Controller
 {
     public function validateReceipt(Request $request)
     {
+        $request->validate(['receipt_data' => ['required', 'string']]);
         $receiptBase64Data = $request->input('receipt_data');
-        $yourSharedSecret = $request->input('shared_secret');
+        // Shared secret from App Store Connect (APPSTORE_PASSWORD); the client value is
+        // only a fallback for installations that haven't configured it yet.
+        $sharedSecret = config('liap.appstore_password') ?: $request->input('shared_secret');
 
-        $validator = new iTunesValidator(iTunesValidator::ENDPOINT_PRODUCTION); // Or iTunesValidator::ENDPOINT_SANDBOX if sandbox testing
+        $validator = new iTunesValidator(iTunesValidator::ENDPOINT_PRODUCTION);
 
         try {
-            $response = $validator->setReceiptData($receiptBase64Data)->validate();
-            $sharedSecret = $yourSharedSecret; // Generated in iTunes Connect's In-App Purchase menu
-            $response = $validator->setSharedSecret($sharedSecret)->setReceiptData($receiptBase64Data)->validate(); // use setSharedSecret() if for recurring subscriptions
+            $validator->setReceiptData($receiptBase64Data);
+            if ($sharedSecret) {
+                $validator->setSharedSecret($sharedSecret);
+            }
+            $response = $validator->validate();
+            // 21007: sandbox receipt sent to production (TestFlight / App Review).
+            if ($response->getResultCode() === 21007) {
+                $response = $validator->setEndpoint(iTunesValidator::ENDPOINT_SANDBOX)->validate();
+            }
         } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            report($e);
+            return response()->json(['error' => __('Could not verify the receipt with the App Store')], 502);
         }
 
         if ($response->isValid()) {

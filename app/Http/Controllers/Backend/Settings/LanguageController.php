@@ -269,24 +269,66 @@ class LanguageController extends Controller
         $zip = new \ZipArchive;
         $res = $zip->open($file->getRealPath());
         if ($res === true) {
+            // Language files are PHP and get executed, so only accept flat
+            // "<name>.php" entries that contain nothing but a returned array of strings.
+            $files = [];
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $entry = $zip->getNameIndex($i);
-                if (pathinfo($entry, PATHINFO_EXTENSION) != 'php') {
+                if (str_ends_with($entry, '/')) {
+                    continue;
+                }
+                $contents = $zip->getFromIndex($i);
+                if (!preg_match('/^[A-Za-z0-9_-]+\.php$/', $entry) || $contents === false || !self::isPlainLanguageArray($contents)) {
+                    $zip->close();
                     toastr()->error(admin_lang('Invalid language files'));
                     return back();
                 }
+                $files[$entry] = $contents;
+            }
+            $zip->close();
+            if (empty($files)) {
+                toastr()->error(admin_lang('Invalid language files'));
+                return back();
             }
             $langPath = base_path('lang/' . $language->code);
             removeDirectory($langPath);
             makeDirectory($langPath);
-            $zip->extractTo($langPath);
-            $zip->close();
+            foreach ($files as $name => $contents) {
+                File::put($langPath . '/' . $name, $contents);
+            }
             toastr()->success(admin_lang('Language imported successfully'));
             return back();
         } else {
             toastr()->error(admin_lang('Failed to import language'));
             return back();
         }
+    }
+
+    /**
+     * True when the PHP source only returns a (nested) array of literal strings
+     * and numbers — no variables, function calls or any other code.
+     */
+    public static function isPlainLanguageArray(string $source): bool
+    {
+        $allowed = [T_OPEN_TAG, T_RETURN, T_ARRAY, T_CONSTANT_ENCAPSED_STRING, T_LNUMBER, T_DNUMBER, T_DOUBLE_ARROW, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT];
+        try {
+            $tokens = token_get_all($source, TOKEN_PARSE);
+        } catch (\ParseError $e) {
+            return false;
+        }
+        if (empty($tokens) || !is_array($tokens[0]) || $tokens[0][0] !== T_OPEN_TAG) {
+            return false;
+        }
+        foreach ($tokens as $token) {
+            if (is_array($token)) {
+                if (!in_array($token[0], $allowed, true)) {
+                    return false;
+                }
+            } elseif (!in_array($token, ['[', ']', '(', ')', ',', ';'], true)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected function createNewLanguageFiles($newLanguageCode)

@@ -15,8 +15,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('subscriptions:update-expired')->everyMinute();
-        \Log::info('Scheduled task ran successfully at ' . now());
+        $schedule->command('subscriptions:update-expired')->everyMinute()->withoutOverlapping();
+        $schedule->command('wg:prune')->dailyAt('03:17')->withoutOverlapping();
     }
 
     /**

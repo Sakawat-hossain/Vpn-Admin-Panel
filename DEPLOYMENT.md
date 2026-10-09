@@ -320,10 +320,12 @@ step 6) so generated links and asset URLs are correct.
 
 ---
 
-## 13. Queue worker (background jobs) — optional but recommended
+## 13. Queue worker + scheduler (background jobs) — required
 
-`QUEUE_CONNECTION=database` means jobs (emails, receipt validation) need a
-worker. The repo ships `laravel-worker.conf` (Supervisor) and `remote.sh`:
+`QUEUE_CONNECTION=database` means jobs need a worker: wg-easy server installs,
+and removing WireGuard peers when a user is deleted, banned, loses premium or
+switches server. The repo ships `laravel-worker.conf` (Supervisor) and `remote.sh`
+(which also installs `sshpass`, needed for server installs):
 
 ```bash
 sudo apt install -y supervisor          # or dnf install supervisor
@@ -332,6 +334,13 @@ sudo cp laravel-worker.conf /etc/supervisor/conf.d/
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start laravel-worker:*
+```
+
+The scheduler moves expired subscriptions back to the free plan (every minute)
+and prunes stale WireGuard peers (`wg:prune`, daily). Add one cron entry:
+
+```bash
+* * * * * cd /path/to/site && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ---
@@ -386,6 +395,51 @@ curl -I https://your-domain-here.com   # expect 200/302, valid TLS
 Visit `https://your-domain-here.com` and the admin login. If you get a 500 with
 no detail, temporarily set `APP_DEBUG=true`, reproduce, then **set it back to
 false** — never leave debug on in production.
+
+---
+
+## 16. Upgrading an existing install (security update)
+
+1. Deploy as usual (`bash deploy.sh`): it runs the new migration, which
+   - stops server deletion from deleting users (`users.server_id` → `ON DELETE SET NULL`),
+   - adds per-server wg-easy passwords, verification-code expiry and the
+     `iap_purchases` table (one App Store / Play purchase per account),
+   - wipes VPS root passwords that were stored in `config_server_jobs`.
+2. Make sure the queue worker and the scheduler cron (section 13) are running.
+3. **Redeploy every WireGuard server once**: Admin → Servers → Edit → *Redeploy
+   wg-easy*. This keeps existing peers but sets an API password and firewalls the
+   wg-easy API port (51821) so only the panel can reach it. Until then the API of
+   those servers stays open to the internet.
+   If the panel's outgoing IP differs from the IP it SSHes from, set
+   `WG_EASY_ALLOWED_IPS` in `.env` before redeploying.
+4. Optional: `php artisan wg:prune --dry-run` lists peers that will be removed
+   (deleted/banned users, users who moved servers, premium servers without premium).
+5. Email verification is now enforced on the API when it is enabled in settings
+   (it is by default). Before deploying, check how many accounts never verified:
+   `SELECT COUNT(*) FROM users WHERE email_verified_at IS NULL;` — they will be
+   asked to verify (via `auth/resend-code` + `auth/verify`) at their next login.
+   To let existing accounts in without verifying, run
+   `UPDATE users SET email_verified_at = created_at WHERE email_verified_at IS NULL;`
+   once after deploying (new accounts still have to verify).
+6. The wg-easy passwords are encrypted with `APP_KEY`. If you rotate `APP_KEY`
+   later, redeploy the WireGuard servers afterwards.
+7. In each plan, `product_id` must be the store product id(s) of that plan
+   (comma-separate different App Store / Play ids). In-app purchases are now
+   only accepted for the matching plan, and one purchase can't unlock two accounts.
+
+Mobile-app visible changes:
+- `GET /server/connect/{id}` now requires the user's token (`Authorization: Bearer …`)
+  in addition to `x-api-key`; free users get `403` on premium servers and `502`
+  when the server is unreachable (previously an empty `200`).
+- `DELETE /users/{id}` only deletes the caller's own account; `validate-receipt`
+  requires login.
+- Banned / unverified (when email verification is on) users get `403` on login and
+  on authenticated calls (`data.verification_required: true` for unverified).
+- Password reset and change issue a new token (`data.api_token` for reset,
+  top-level `token` for change); the old token stops working.
+- Verification codes expire after `VERIFICATION_CODE_TTL` minutes (30) and lock
+  after 5 wrong attempts; requesting codes is limited to 3 per 15 minutes.
+- The register response no longer contains the verification code or token.
 
 ---
 

@@ -21,9 +21,11 @@ class VerifyFastApiKey
     {
         $apiKey = config('app.fast_api_key');
 
+        $provided = $request->header('x-api-key');
         $apiKeyIsValid = (
-            !empty ($apiKey)
-            && $request->header('x-api-key') == $apiKey
+            is_string($apiKey) && $apiKey !== ''
+            && is_string($provided)
+            && hash_equals($apiKey, $provided)
         );
 
         abort_if(!$apiKeyIsValid, 403, 'Access denied');
