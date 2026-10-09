@@ -51,6 +51,9 @@ php artisan storage:link || true
 chown -R "$WEB_USER":"$WEB_USER" storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 
+echo "==> Restarting queue workers (they keep the old code in memory otherwise)"
+php artisan queue:restart || true
+
 echo "==> Reloading PHP-FPM"
 sudo systemctl reload "$PHP_FPM_SERVICE" || true
 

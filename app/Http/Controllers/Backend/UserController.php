@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\RevokeWireGuardPeer;
 use App\Models\Country;
 use App\Models\User;
 use App\Models\UserLog;
@@ -210,7 +211,7 @@ class UserController extends Controller
             }
 
             // auto subs ke free plan
-            $plan = Plan::find(13);// id plan harus 13
+            $plan = freePlan();
             if (is_null($plan)) {
                 return response422(['plan' => [__(admin_lang('Plan not exists'))]]);
             }
@@ -271,6 +272,7 @@ class UserController extends Controller
             'zip' => $request->zip,
             'country' => $country->name ?? null,
         ];
+        $wasActive = !$user->isBanned();
         $update = $user->update([
             'name' => $request->firstname . ' ' . $request->lastname,
             'firstname' => $request->firstname,
@@ -285,6 +287,11 @@ class UserController extends Controller
             $user->forceFill([
                 'email_verified_at' => $emailValue,
             ])->save();
+            if ($wasActive && $user->isBanned()) {
+                // Banning must also stop the VPN config the user already has.
+                RevokeWireGuardPeer::forUser($user);
+                $user->rotateApiToken();
+            }
             toastr()->success(admin_lang('Updated Successfully'));
             return back();
         }
@@ -294,9 +301,10 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         deleteAdminNotification(route('admin.users.edit', $user->id));
-        if ($user->avatar != "images/avatars/default.png") {
+        if ($user->avatar != "images/avatars/default.png" && str_starts_with($user->avatar, 'images/avatars/users/')) {
             removeFile($user->avatar);
         }
+        RevokeWireGuardPeer::forUser($user);
         $user->delete();
         toastr()->success(admin_lang('Deleted Successfully'));
         return back();

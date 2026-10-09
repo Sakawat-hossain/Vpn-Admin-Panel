@@ -4,6 +4,16 @@ use Illuminate\Support\Facades\Facade;
 
 return [
     'fast_api_key' => env('APP_FAST_API_KEY'),
+
+    // Plan every new account starts on and expired subscriptions fall back to.
+    // Leave empty to use the first plan marked "free".
+    'free_plan_id' => env('FREE_PLAN_ID', 13),
+
+    // Reverse proxies allowed to set X-Forwarded-For (comma-separated IPs/CIDRs, or "*").
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    // Minutes an emailed 6-digit verification / password-reset code stays valid.
+    'verification_code_ttl' => (int) env('VERIFICATION_CODE_TTL', 30),
     /*
     |--------------------------------------------------------------------------
     | Application Name

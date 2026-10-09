@@ -30,7 +30,7 @@ class ResetPasswordRequest extends FormRequest
                 'new_password'              => 'required|min:6|confirmed',
                 'new_password_confirmation' => 'required|min:6',
                 "email"                     => 'required|exists:users,email',
-                "verification_code"         => 'required|exists:users,verification_code',
+                "verification_code"         => 'required|digits:6',
                 // "verification_token"        => 'required|exists:users,email_token',
             ];
         }

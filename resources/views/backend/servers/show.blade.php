@@ -2,6 +2,9 @@
 @section('title', admin_lang('Detail Server for ' . $server->country))
 @section('back', route('admin.servers.index'))
 @section('content')
+@if ($error)
+    <div class="alert alert-warning">{{ $error }}</div>
+@endif
 <div class="card custom-card">
     <div class="card-datatable table-responsive">
         <table class="dtable table w-100">
@@ -18,11 +21,14 @@
             </thead>
             <tbody>
                 @foreach ($logs as $row)
-                @php
-    $user_id = str_replace("wg","",$row->id);
-                @endphp
                     <tr>
-                        <td><a href="{{ route('admin.users.edit', $user_id) }}">{{ $row->id }}</a></td>
+                        <td>
+                            @if (preg_match('/^wg(\d+)$/', $row->id, $m))
+                                <a href="{{ route('admin.users.edit', $m[1]) }}">{{ $row->id }}</a>
+                            @else
+                                {{ $row->id }}
+                            @endif
+                        </td>
                         <td>{{ $row->enabled }}</td>
                         <td>{{ $row->address }}</td>
                         <td>{{ number_format($row->transferRx,0,',','.') }}</td>

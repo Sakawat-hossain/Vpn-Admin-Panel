@@ -6,34 +6,38 @@ use Illuminate\Support\Facades\Cache;
 
 class IpInfo
 {
+    /**
+     * Client IP. Uses Laravel's request()->ip(), which only honours
+     * X-Forwarded-For from proxies listed in TrustProxies. Cloudflare's
+     * CF-Connecting-IP is only used when TRUST_CLOUDFLARE_IP=true.
+     */
     public static function ip()
     {
-        $ip = null;
-        if (isset($_SERVER["HTTP_CF_CONNECTING_IP"])) {
-            $ip = $_SERVER["HTTP_CF_CONNECTING_IP"];
-        } else {
-            if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
-                $ip = $_SERVER["REMOTE_ADDR"];
-                if (filter_var(@$_SERVER['HTTP_X_FORWARDED_FOR'], FILTER_VALIDATE_IP)) {
-                    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-                }
-                if (filter_var(@$_SERVER['HTTP_CLIENT_IP'], FILTER_VALIDATE_IP)) {
-                    $ip = $_SERVER['HTTP_CLIENT_IP'];
-                }
+        if (config('services.cloudflare.trust_connecting_ip')) {
+            $cfIp = request()->header('CF-Connecting-IP');
+            if (filter_var($cfIp, FILTER_VALIDATE_IP)) {
+                return $cfIp;
             }
         }
-        return $ip;
+        return request()->ip();
     }
 
     public static function lookup($ip = null)
     {
         $ip = ($ip) ? $ip : self::ip();
-        if (Cache::has($ip)) {
-            $ipInfo = Cache::get($ip);
-        } else {
-            $fields = "status,country,countryCode,city,zip,lat,lon,timezone,query";
-            $ipInfo = (object) json_decode(curl_get_file_contents("http://ip-api.com/json/{$ip}?fields={$fields}"), true);
-            Cache::forever($ip, $ipInfo);
+        $ipInfo = (object) [];
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            $cacheKey = 'ipinfo:' . $ip;
+            $ipInfo = Cache::get($cacheKey);
+            if (!$ipInfo) {
+                $fields = "status,country,countryCode,city,zip,lat,lon,timezone,query";
+                // ip-api.com's free tier is HTTP-only and rate limited (45 req/min).
+                $response = curl_get_file_contents("http://ip-api.com/json/{$ip}?fields={$fields}", 3);
+                $ipInfo = (object) (json_decode((string) $response, true) ?: []);
+                // Cache successful lookups for a week, failures briefly.
+                $ttl = (($ipInfo->status ?? null) === 'success') ? now()->addDays(7) : now()->addMinutes(10);
+                Cache::put($cacheKey, $ipInfo, $ttl);
+            }
         }
         $data['ip'] = $ipInfo->query ?? $ip;
         $data['location']['country'] = $ipInfo->country ?? "Other";

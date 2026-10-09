@@ -42,7 +42,7 @@ class StripeCheckoutController extends Controller
 
         $gatewayFees = ($trx->total * paymentGateway('stripe_checkout')->fees) / 100;
         $totalPrice = round(($trx->total + $gatewayFees), 2);
-        $priceIncludeFees = str_replace('.', '', ($totalPrice * 100));
+        $priceIncludeFees = (int) round($totalPrice * 100); // amount in the smallest currency unit
 
         $paymentDeatails = [
             'customer_creation' => 'always',

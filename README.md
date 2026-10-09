@@ -1,64 +1,44 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# VPN Admin Panel
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 9 admin panel and mobile-app API for a VPN service. It manages users,
+plans and subscriptions (web checkout + App Store / Google Play in-app
+purchases) and two kinds of VPN servers:
 
-## About Laravel
+- **WireGuard** servers running [wg-easy](https://github.com/ombapit/wg-easy)
+  (the `ombapit` fork). The panel installs wg-easy over SSH and creates one peer
+  per user (`wg{userId}`) when the app connects.
+- **OpenVPN** servers, for which the admin pastes a client profile (`.ovpn`)
+  that is handed to entitled users.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+See [DEPLOYMENT.md](DEPLOYMENT.md) for installation, and section 16 there when
+upgrading an existing install.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## How the VPN side works
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| | WireGuard (wg-easy) | OpenVPN |
+|---|---|---|
+| Server setup | Admin → Servers → *Install Wg Easy* (or *Redeploy* on Edit). Runs `App\Jobs\ConfigServer` on the queue. | Done by you; paste the client profile into the server form. It must contain `client`, a `remote` and the CA inline. |
+| Connect (`GET /api/v1/server/connect/{id}`) | Re-creates the user's peer (fresh keys, so only the latest device works) and returns its config. | Returns the stored profile. |
+| Premium servers | Only users with an active paid plan can connect. | Same. |
+| Revocation | Peers are removed when the user is deleted/banned, loses premium, or moves to another server; `wg:prune` cleans up daily. | Not possible per user: everyone shares one profile. Use `auth-user-pass` on the OpenVPN server if you need per-user revocation. |
 
-## Learning Laravel
+wg-easy API access is protected by a per-server password (sent in the
+`Authorization` header) and a firewall rule that only lets the panel's IP reach
+port 51821. Each wg-easy server holds at most 253 peers (one /24).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Development
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+cp .env.example .env && php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+php artisan queue:work          # server installs, peer revocation
+php artisan schedule:work       # subscription expiry, wg:prune
+vendor/bin/phpunit              # uses in-memory SQLite
+```
 
-## Laravel Sponsors
+Useful commands:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[CMS Max](https://www.cmsmax.com/)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- `php artisan wg:prune --dry-run` – list WireGuard peers that should be removed.
+- `php artisan subscriptions:update-expired` – move expired subscriptions to the free plan.

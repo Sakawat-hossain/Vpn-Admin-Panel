@@ -41,6 +41,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at',
         'email_token',
         'verification_code',
+        'verification_code_sent_at',
         'dns',
         'download',
         'upload',
@@ -56,6 +57,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'google2fa_secret',
+        'api_token',
+        'email_token',
+        'verification_code',
+        'verification_code_sent_at',
     ];
 
     /**
@@ -66,7 +71,51 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'address' => 'object',
         'email_verified_at' => 'datetime',
+        'verification_code_sent_at' => 'datetime',
     ];
+
+    /**
+     * Name of this user's peer on a wg-easy server (wg-easy uses it as the client id).
+     */
+    public function wgClientName(): string
+    {
+        return 'wg' . $this->id;
+    }
+
+    public function isBanned(): bool
+    {
+        return (int) $this->status === 0;
+    }
+
+    /**
+     * Whether the user currently has a paid, unexpired subscription.
+     */
+    public function hasPremiumAccess(): bool
+    {
+        $subscription = $this->subscription;
+        if (!$subscription || !$subscription->plan) {
+            return false;
+        }
+        return !$subscription->plan->isFree() && $subscription->isActive();
+    }
+
+    /**
+     * Whether the user may connect to the given server.
+     */
+    public function canUseServer(Server $server): bool
+    {
+        return (int) $server->is_premium !== Server::STATUS_PREMIUM || $this->hasPremiumAccess();
+    }
+
+    /**
+     * Issue a fresh API token, invalidating the previous one.
+     */
+    public function rotateApiToken(): string
+    {
+        $token = hash('sha256', \Illuminate\Support\Str::random(60));
+        $this->forceFill(['api_token' => $token])->save();
+        return $token;
+    }
 
     /**
      * Decrypt the user's google_2fa secret.

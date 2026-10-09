@@ -128,17 +128,18 @@ class RegisterController extends Controller
         $data = $request->all();
         $this->validator($data)->validate();
 
+        $plan = freePlan();
+        if (is_null($plan)) {
+            toastr()->error(admin_lang('Plan does not exist'));
+            return back()->withInput($request->except('password', 'password_confirmation'));
+        }
+
         $data['name'] = $request->firstname . " " . $request->lastname;
-        $data['server_id'] = $server->id;
-        $data['dns'] = '1.1.1.1';
+        $data['server_id'] = $server->id ?? null;
+        $data['dns'] = config('services.wg_easy.default_dns', '1.1.1.1');
         $data['api_token'] = hash('sha256', Str::random(60));
 
-
         $user = $this->create($data);
-        $plan = Plan::find(13);
-        if (is_null($plan)) {
-            return response422(['plan' => [__(admin_lang('Plan does not exist'))]]);
-        }
         $expiry_at = Carbon::now();
         $createSubscription = Subscription::create([
             'user_id' => $user->id,

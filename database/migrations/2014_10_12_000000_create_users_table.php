@@ -39,7 +39,7 @@ class CreateUsersTable extends Migration
             $table->float('download')->default(0);
             $table->float('upload')->default(0);
             $table->bigInteger('server_id')->unsigned()->nullable();
-            $table->foreign("server_id")->references("id")->on('servers')->onDelete('cascade');
+            $table->foreign("server_id")->references("id")->on('servers')->nullOnDelete();
             $table->timestamps();
         });
     }

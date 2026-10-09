@@ -262,7 +262,7 @@
                         </div>
                         <div class="mb-4 install">
                             <label class="form-label">{{ admin_lang('VPS Password') }} : <span class="text-danger">*</span></label>
-                            <input type="text" name="vps_password" id="vps_password" class="form-control"/>
+                            <input type="password" name="vps_password" id="vps_password" class="form-control" autocomplete="new-password"/>
                         </div>
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="isOVPN" name="isOVPN">
@@ -311,12 +311,12 @@
                 $('.install').show()
                 $("#ssh_port").attr("required", true)
                 $("#vps_username").attr("required", true)
-                $("#vps_pasword").attr("required", true)
+                $("#vps_password").attr("required", true)
             } else {
                 $('.install').hide()
                 $("#ssh_port").removeAttr("required")
                 $("#vps_username").removeAttr("required")
-                $("#vps_pasword").removeAttr("required")
+                $("#vps_password").removeAttr("required")
             }
         })
         $("#installWgEasy").prop("checked", false)
@@ -336,12 +336,16 @@
         $('.ovpn').hide()
     })
     
+    function escapeHtml(text) {
+        return $('<div>').text(text == null ? '' : String(text)).html();
+    }
+
     // view deploy
     function view_detail(server_id) {
         $("#deployModal").modal('show');
-        $("#deployData").html("<tr><td colspan=\"2\">Loading data..</td></tr>");
+        $("#deployData").html("<tr><td colspan=\"3\">Loading data..</td></tr>");
         $.ajax({
-            url: "{{ config('app.url') }}/admin/servers/"+ server_id + "/deploy",
+            url: "{{ route('admin.servers.index') }}/" + server_id + "/deploy",
             type: "GET",
             dataType: "json",
             success: function(data) {
@@ -351,13 +355,13 @@
                     data.data.forEach(element => {
                         html += '<tr>';
                         html += `<td class="text-center">${no}</td>`;
-                        html += `<td>${element.action}</td>`;
-                        html += `<td>${element.result}</td>`;
+                        html += `<td>${escapeHtml(element.action)}</td>`;
+                        html += `<td><pre class="mb-0" style="white-space:pre-wrap">${escapeHtml(element.result)}</pre></td>`;
                         html += '</tr>';
                         no++;
                     });
                 } else {
-                    html = "<tr><td colspan=\"2\">Empty data</td></tr>";
+                    html = "<tr><td colspan=\"3\">Empty data</td></tr>";
                 }
                 $("#deployData").html(html);
             }
