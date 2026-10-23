@@ -47,15 +47,24 @@ class OpenVpnProfile
             'auth-nocache',
             'cipher AES-256-CBC',
             'data-ciphers AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305:AES-256-CBC',
-            'key-direction 1',
             'verb 3',
             '<ca>',
             trim($this->pki->caCertificate()),
             '</ca>',
-            '<tls-auth>',
-            trim($this->pki->tlsAuthKey()),
-            '</tls-auth>',
         ];
+        if (self::tlsMode() === 'tls-auth') {
+            array_push($lines, 'key-direction 1', '<tls-auth>', trim($this->pki->tlsAuthKey()), '</tls-auth>');
+        } else {
+            array_push($lines, '<tls-crypt>', trim($this->pki->tlsAuthKey()), '</tls-crypt>');
+        }
         return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * "tls-crypt" or "tls-auth" (see config services.openvpn.tls).
+     */
+    public static function tlsMode(): string
+    {
+        return config('services.openvpn.tls') === 'tls-auth' ? 'tls-auth' : 'tls-crypt';
     }
 }

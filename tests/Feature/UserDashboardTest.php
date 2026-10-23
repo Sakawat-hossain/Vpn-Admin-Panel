@@ -195,6 +195,8 @@ class UserDashboardTest extends TestCase
         $this->assertStringContainsString('auth-user-pass', $profile);
         $this->assertStringContainsString("remote {$server->ip_address} 1194", $profile);
         $this->assertStringContainsString('<ca>', $profile);
+        $this->assertStringContainsString('<tls-crypt>', $profile);
+        $this->assertStringNotContainsString('key-direction', $profile);
     }
 
     public function test_devices_page_lists_and_signs_out_sessions()

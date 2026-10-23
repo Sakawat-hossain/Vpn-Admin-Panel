@@ -162,6 +162,7 @@ class ClientApiTest extends ApiTestCase
             ->assertJsonPath('config.api.ipv6s', ['2001:db8::1']);
         $this->assertStringContainsString('BEGIN CERTIFICATE', $response->json('config.openvpn.ca'));
         $this->assertStringContainsString('BEGIN OpenVPN Static key V1', $response->json('config.openvpn.tls_auth'));
+        $this->assertSame('tls-crypt', $response->json('config.openvpn.tls_mode'));
         $this->assertStringNotContainsString('server-secret', $response->getContent());
     }
 

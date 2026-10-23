@@ -7,6 +7,7 @@ use App\Jobs\Concerns\RunsServerSetup;
 use App\Models\ConfigServerJob;
 use App\Models\Server;
 use App\Services\OpenVpnPki;
+use App\Services\OpenVpnProfile;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -113,6 +114,7 @@ class ConfigOpenVpnServer implements ShouldQueue, ShouldBeEncrypted
         $key = trim($certificate['key']);
         $ta = trim($pki->tlsAuthKey());
         $udpOnly = $proto === 'udp' ? 'explicit-exit-notify 1' : '';
+        $tlsLine = OpenVpnProfile::tlsMode() === 'tls-auth' ? 'tls-auth ta.key 0' : 'tls-crypt ta.key';
 
         return <<<BASH
 #!/bin/bash
@@ -189,7 +191,7 @@ ca ca.crt
 cert server.crt
 key server.key
 dh none
-tls-auth ta.key 0
+$tlsLine
 cipher AES-256-CBC
 \$CIPHERS
 verify-client-cert none

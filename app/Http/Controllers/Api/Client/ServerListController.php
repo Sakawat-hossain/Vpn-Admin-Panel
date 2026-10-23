@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Server;
 use App\Services\OpenVpnPki;
+use App\Services\OpenVpnProfile;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -53,7 +54,11 @@ class ServerListController extends Controller
                 'antitracker' => ['default' => ['ip' => ''], 'hardcore' => ['ip' => '']],
                 'antitracker_plus' => ['DnsServers' => []],
                 'api' => $this->apiAddresses(),
-                'openvpn' => ['ca' => $pki->caCertificate(), 'tls_auth' => $pki->tlsAuthKey()],
+                'openvpn' => [
+                    'ca' => $pki->caCertificate(),
+                    'tls_auth' => $pki->tlsAuthKey(),
+                    'tls_mode' => OpenVpnProfile::tlsMode(),
+                ],
                 'ports' => [
                     'openvpn' => [['type' => $proto, 'port' => (int) config('services.openvpn.port')]],
                     'wireguard' => [],

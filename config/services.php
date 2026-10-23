@@ -63,6 +63,11 @@ return [
         // URL the VPN servers use to check user logins. Defaults to APP_URL;
         // set it when servers must reach the panel by another address.
         'auth_url' => env('OPENVPN_AUTH_URL'),
+        // How the shared static key protects the TLS handshake: "tls-crypt"
+        // (default) encrypts it, so firewalls such as the GFW can't
+        // fingerprint OpenVPN; "tls-auth" only signs it. Redeploy servers
+        // after changing it.
+        'tls' => strtolower((string) env('OPENVPN_TLS', 'tls-crypt')) === 'tls-auth' ? 'tls-auth' : 'tls-crypt',
         // Comma-separated public IPs of the panel for the apps (DNS fallback
         // and kill switch exception). Defaults to the addresses of APP_URL.
         'api_ips' => env('CLIENT_API_IPS'),
