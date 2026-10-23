@@ -26,6 +26,19 @@ wg-easy API access is protected by a per-server password (sent in the
 `Authorization` header) and a firewall rule that only lets the panel's IP reach
 port 51821. Each wg-easy server holds at most 253 peers (one /24).
 
+## User panel
+
+Signed-in users land on `/user/dashboard`: their plan and days left, the
+server list (with flags), recent payments and account security. Users entitled
+to an OpenVPN server can download its `.ovpn` profile there
+(`/user/servers/{id}/openvpn`, same premium rules as the app's connect
+endpoint) for OpenVPN Connect or similar apps. WireGuard servers are used
+through the app.
+
+The user panel uses [Tabler](https://tabler.io) 1.6.1 (MIT), vendored in
+`public/assets/vendor/libs/tabler`, with a light/dark switch. The admin panel
+and public site still use the previous theme.
+
 ## Development
 
 ```bash

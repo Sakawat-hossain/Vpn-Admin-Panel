@@ -1,14 +1,11 @@
-<footer class="landing-footer bg-body footer-text">
-    <div class="footer-bottom py-3">
-        <div class="dash-footer-copyright text-center">
-            <span class="footer-text"
-            >©
-            <script>
-              document.write(new Date().getFullYear());
-            </script>
-          </span>
-          <a href="javascript:void(0)" target="_blank" class="fw-medium text-white footer-link">{{ $settings->general->site_name }},</a>
-          <span class="footer-text"> {{ lang('All rights reserved') }}.</span>
+<footer class="footer footer-transparent d-print-none">
+    <div class="container-xl">
+        <div class="row text-center align-items-center">
+            <div class="col-12">
+                &copy; {{ date('Y') }}
+                <a href="{{ route('home') }}" class="link-secondary">{{ $settings->general->site_name }}</a>.
+                {{ lang('All rights reserved') }}.
+            </div>
         </div>
     </div>
 </footer>

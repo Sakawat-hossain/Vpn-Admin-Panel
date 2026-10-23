@@ -1189,6 +1189,28 @@ function listCountries()
     }
     return $options;
 }
+
+/**
+ * Lower-case ISO 3166-1 alpha-2 code for a country name from listCountries()
+ * (the names servers are stored with), for flag icons. Null when unknown.
+ */
+function countryIsoCode($name)
+{
+    static $codes = null;
+    if ($codes === null) {
+        $codes = [];
+        $path = public_path('assets/data/countries_v1.json');
+        if (is_file($path)) {
+            foreach (json_decode(file_get_contents($path), true) ?: [] as $row) {
+                if (!empty($row['name']) && !empty($row['iso2'])) {
+                    $codes[strtolower($row['name'])] = strtolower($row['iso2']);
+                }
+            }
+        }
+    }
+    return $codes[strtolower(trim((string) $name))] ?? null;
+}
+
 /**
  * The plan new accounts start on and expired subscriptions fall back to.
  * Configured with FREE_PLAN_ID; falls back to the first plan marked free.

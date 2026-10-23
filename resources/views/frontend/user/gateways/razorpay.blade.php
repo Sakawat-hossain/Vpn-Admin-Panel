@@ -1,12 +1,13 @@
 @extends('frontend.user.layouts.app')
 @section('title', lang('Payment confirm', 'checkout'))
+@section('page-title', lang('Payment confirm', 'checkout'))
 @section('content')
-    <div class="checkout my-5">
+    <div class="checkout">
         <div class="row">
             <div class="col-lg-6 m-auto">
-                <div class="card-v mb-4">
-                    <h5 class="mb-3">{{ lang('Payment deatils', 'checkout') }}</h5>
-                    <table class="table table-bordered table-striped shadow-none mb-3">
+                <div class="card card-body mb-4">
+                    <h3 class="mb-3">{{ lang('Payment deatils', 'checkout') }}</h3>
+                    <table class="table table-bordered mb-3">
                         <tbody>
                             <tr>
                                 <td class="p-3"><strong>{{ lang('Plan price', 'checkout') }}</strong></td>

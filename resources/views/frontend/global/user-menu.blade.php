@@ -8,6 +8,13 @@
   </a>
   <ul class="dropdown-menu dropdown-menu-end dropdown-styles">
     <li>
+      <a href="{{ route('user.dashboard') }}"
+        class="dropdown-item d-flex align-items-center {{ request()->routeIs('user.dashboard') ? 'active' : '' }}">
+        <i class="ti ti-layout-dashboard pe-2"></i>
+        <span>{{ lang('Dashboard', 'account') }}</span>
+      </a>
+    </li>
+    <li>
       <a href="{{ route('user.settings.index') }}"
         class="dropdown-item d-flex align-items-center {{ request()->segment(1) == 'settings' ? 'active' : '' }}">
         <i class="ti ti-settings pe-2"></i>

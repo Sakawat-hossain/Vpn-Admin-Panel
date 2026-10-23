@@ -51,8 +51,10 @@ Route::group(localizeOptions(), function () {
         });
         Route::group(['prefix' => 'user', 'namespace' => 'User', 'middleware' => ['auth', 'verified', '2fa.verify']], function () {
             Route::get('/', function () {
-                return redirect()->route('user.settings.index');
+                return redirect()->route('user.dashboard');
             });
+            Route::get('dashboard', 'DashboardController@index')->name('user.dashboard');
+            Route::get('servers/{server}/openvpn', 'ServerController@openvpn')->name('user.servers.openvpn');
             Route::name('checkout.')->prefix('checkout')->group(function () {
                 Route::get('{checkout_id}', 'CheckoutController@index')->name('index');
                 Route::post('{checkout_id}/coupon/apply', 'CheckoutController@applyCoupon')->name('coupon.apply');
