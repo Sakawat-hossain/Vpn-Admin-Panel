@@ -63,6 +63,9 @@ return [
         // URL the VPN servers use to check user logins. Defaults to APP_URL;
         // set it when servers must reach the panel by another address.
         'auth_url' => env('OPENVPN_AUTH_URL'),
+        // Comma-separated public IPs of the panel for the apps (DNS fallback
+        // and kill switch exception). Defaults to the addresses of APP_URL.
+        'api_ips' => env('CLIENT_API_IPS'),
     ],
 
     // Only honour Cloudflare's CF-Connecting-IP header when the site really sits

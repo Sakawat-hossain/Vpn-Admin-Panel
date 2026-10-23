@@ -148,6 +148,7 @@ class ClientApiTest extends ApiTestCase
         $this->makeServer();
 
         $this->getJson('/api/client/v5/servers.json')->assertStatus(403);
+        config(['services.openvpn.api_ips' => '203.0.113.7, 2001:db8::1']);
 
         $response = $this->withHeaders(['x-api-key' => self::API_KEY])->getJson('/api/client/v5/servers.json')->assertOk();
         $response->assertJsonCount(1, 'openvpn')
@@ -155,7 +156,12 @@ class ClientApiTest extends ApiTestCase
             ->assertJsonPath('openvpn.0.country_code', 'JP')
             ->assertJsonPath('openvpn.0.is_premium', true)
             ->assertJsonPath('openvpn.0.hosts.0.host', $managed->ip_address)
-            ->assertJsonPath('config.ports.openvpn.0', ['type' => 'UDP', 'port' => 1194]);
+            ->assertJsonPath('config.ports.openvpn.0', ['type' => 'UDP', 'port' => 1194])
+            ->assertJsonPath('openvpn.0.hosts.0.hostname', 'server-' . $managed->id . '.gw')
+            ->assertJsonPath('config.api.ips', ['203.0.113.7'])
+            ->assertJsonPath('config.api.ipv6s', ['2001:db8::1']);
+        $this->assertStringContainsString('BEGIN CERTIFICATE', $response->json('config.openvpn.ca'));
+        $this->assertStringContainsString('BEGIN OpenVPN Static key V1', $response->json('config.openvpn.tls_auth'));
         $this->assertStringNotContainsString('server-secret', $response->getContent());
     }
 
