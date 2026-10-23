@@ -251,9 +251,21 @@ printf '[Service]\\nLimitNPROC=infinity\\n' > /etc/systemd/system/openvpn-server
 systemctl daemon-reload
 systemctl enable openvpn-panel-nat.service >/dev/null 2>&1 || true
 systemctl enable openvpn-server@server >/dev/null 2>&1 || true
+systemctl stop openvpn-server@server >/dev/null 2>&1 || true
+if [ "\$PROTO" = "udp" ]; then SS_ARGS="-H -lunp"; else SS_ARGS="-H -ltnp"; fi
+# Another VPN (or an older OpenVPN install) on the same port makes ours
+# crash-loop with "Address already in use".
+BUSY=\$(ss \$SS_ARGS "sport = :\$PORT" 2>/dev/null)
+if [ -n "\$BUSY" ]; then
+  echo "ERROR: port \$PORT/\$PROTO is already used by another program on this VPS:"
+  echo "\$BUSY"
+  echo "Stop that program, or set OPENVPN_PORT to a free port in the panel .env and redeploy."
+  exit 28
+fi
 systemctl restart openvpn-server@server
-sleep 3
-if ! systemctl is-active --quiet openvpn-server@server; then
+# wait past systemd's restart delay so a crash loop is not mistaken for success
+sleep 7
+if ! systemctl is-active --quiet openvpn-server@server || ! ss \$SS_ARGS "sport = :\$PORT" 2>/dev/null | grep -q openvpn; then
   echo "ERROR: OpenVPN did not start. Last logs:"
   journalctl -u openvpn-server@server --no-pager -n 40 2>/dev/null
   exit 24

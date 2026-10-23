@@ -136,6 +136,7 @@ class AdminOpenVpnServerTest extends TestCase
         $this->assertStringContainsString('PORT=443', $script);
         $this->assertStringContainsString('auth-user-pass-verify /etc/openvpn/server/panel-auth.sh via-file', $script);
         $this->assertStringNotContainsString('explicit-exit-notify', $script);
+        $this->assertStringContainsString('is already used by another program', $script);
 
         $file = tempnam(sys_get_temp_dir(), 'ovpn-script');
         file_put_contents($file, $script);
