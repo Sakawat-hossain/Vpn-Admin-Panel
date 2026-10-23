@@ -19,7 +19,7 @@
                     </div>
                 </div>
             @endif
-            @include('frontend.user.includes.theme-toggle')
+            @include('partials.theme-toggle', ['darkLabel' => lang('Dark mode', 'account'), 'lightLabel' => lang('Light mode', 'account')])
             @include('frontend.user.includes.user-dropdown')
         </div>
     </div>

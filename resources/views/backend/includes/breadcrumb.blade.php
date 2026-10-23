@@ -1,18 +1,17 @@
-<div>
-  <h4 class="pt-3"><span class="text-muted fw-light capitalize">@yield('title')</h4>
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb breadcrumb-style1 capitalize">
-      <?php $segments = ''; ?>
-        @foreach (request()->segments() as $segment)
-        <?php $segments .= '/' . $segment; ?>
-        <li class="breadcrumb-item  @if(request()->segment(count(request()->segments())) == $segment) active @endif">
-            @if(request()->segment(count(request()->segments())) != $segment)
-            <a href="{{ url($segments) }}">{{ $segment }}</a>
-        @else
-          {{ $segment }}
-        @endif
+@php
+    $breadcrumbSegments = request()->segments();
+    $breadcrumbLast = count($breadcrumbSegments) - 1;
+    $breadcrumbPath = '';
+@endphp
+<ol class="breadcrumb breadcrumb-arrows mb-1 capitalize" aria-label="breadcrumbs">
+    @foreach ($breadcrumbSegments as $index => $segment)
+        @php $breadcrumbPath .= '/' . $segment; @endphp
+        <li class="breadcrumb-item {{ $index === $breadcrumbLast ? 'active' : '' }}">
+            @if ($index === $breadcrumbLast)
+                {{ $segment }}
+            @else
+                <a href="{{ url($breadcrumbPath) }}">{{ $segment }}</a>
+            @endif
         </li>
-      @endforeach
-    </ol>
-  </nav>
-</div>
+    @endforeach
+</ol>

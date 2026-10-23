@@ -25,7 +25,7 @@
             </a>
         </div>
         <div class="navbar-nav flex-row d-lg-none">
-            @include('frontend.user.includes.theme-toggle')
+            @include('partials.theme-toggle', ['darkLabel' => lang('Dark mode', 'account'), 'lightLabel' => lang('Light mode', 'account')])
             @include('frontend.user.includes.user-dropdown')
         </div>
         <div class="collapse navbar-collapse" id="sidebar-menu">

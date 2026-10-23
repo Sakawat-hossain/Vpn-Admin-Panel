@@ -4,7 +4,7 @@
     $primaryRgb = $primaryColor && preg_match('/^#([0-9a-f]{6})$/i', $primaryColor) ? implode(',', sscanf($primaryColor, '#%02x%02x%02x')) : null;
     $themeDefault = in_array($settings->theme->mode_default ?? 'auto', ['light', 'dark']) ? $settings->theme->mode_default : null;
 @endphp
-<html lang="{{ getLang() }}" dir="ltr" data-bs-navbar-position="vertical" @if ($themeDefault) data-bs-theme="{{ $themeDefault }}" @endif>
+<html lang="{{ getLang() }}" dir="ltr" data-bs-navbar-position="vertical" data-bs-layout="fluid" @if ($themeDefault) data-bs-theme="{{ $themeDefault }}" @endif>
 
 <head>
     <meta charset="utf-8" />
@@ -71,6 +71,7 @@
     <script src="{{ asset('assets/vendor/libs/toastr/toastr.js') }}"></script>
     <script src="{{ asset('assets/vendor/libs/clipboard/clipboard.min.js') }}"></script>
     @stack('scripts_libs')
+    <script src="{{ asset('assets/js/panel-theme.js') }}"></script>
     <script src="{{ asset('assets/js/user-panel.js') }}"></script>
     @stack('scripts')
     @include('frontend.configurations.widgets')

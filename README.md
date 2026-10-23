@@ -35,9 +35,13 @@ to an OpenVPN server can download its `.ovpn` profile there
 endpoint) for OpenVPN Connect or similar apps. WireGuard servers are used
 through the app.
 
-The user panel uses [Tabler](https://tabler.io) 1.6.1 (MIT), vendored in
-`public/assets/vendor/libs/tabler`, with a light/dark switch. The admin panel
-and public site still use the previous theme.
+The user panel and the admin panel both use the fluid vertical layout of
+[Tabler](https://tabler.io) 1.6.1 (MIT), vendored in
+`public/assets/vendor/libs/tabler`, with a light/dark switch
+(`assets/js/panel-theme.js`). Admin pages extend `backend.layouts.grid` /
+`form` / `application`, which build on `backend.layouts.panel`;
+`assets/css/admin-panel.css` keeps markup written for the previous theme
+working. The public site and the login pages still use the previous theme.
 
 ## Development
 
