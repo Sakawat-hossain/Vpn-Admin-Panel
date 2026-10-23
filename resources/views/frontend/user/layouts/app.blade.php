@@ -1,92 +1,81 @@
 <!doctype html>
-
-<html
-  lang="{{ getLang() }}"
-  class="light-style layout-navbar-fixed layout-wide"
-  dir="ltr"
-  data-theme="theme-default"
-  data-assets-path="/assets/"
-  data-template="front-pages">
+@php
+    $primaryColor = $settings->colors->primary_color ?? null;
+    $primaryRgb = $primaryColor && preg_match('/^#([0-9a-f]{6})$/i', $primaryColor) ? implode(',', sscanf($primaryColor, '#%02x%02x%02x')) : null;
+    $themeDefault = in_array($settings->theme->mode_default ?? 'auto', ['light', 'dark']) ? $settings->theme->mode_default : null;
+@endphp
+<html lang="{{ getLang() }}" dir="ltr" data-bs-navbar-position="vertical" data-bs-layout="fluid" @if ($themeDefault) data-bs-theme="{{ $themeDefault }}" @endif>
 
 <head>
-    @include('frontend.global.head')
-    @push('styles')
-      <link rel="stylesheet" href="{{ asset('assets/vendor/css/pages/front-page-landing.css') }}" />
-    @endpush
-    @include('frontend.global.styles')
-    <!-- Helpers -->
-    <script src="{{ asset('assets/vendor/js/helpers.js') }}"></script>
-    <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
-    <!--? Template customizer: To hide customizer set displayCustomizer value false in config.js.  -->
-    <script src="{{ asset('assets/vendor/js/template-customizer.js') }}"></script>
-    <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
-    <script src="{{ asset('assets/js/front-config.js') }}"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="theme-color" content="{{ $settings->colors->primary_color }}">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ pageTitle($__env) }}</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset($settings->media->favicon) }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/tabler/css/tabler.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/fonts/tabler-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/fonts/flag-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendor/libs/toastr/toastr.css') }}">
+    @stack('styles_libs')
+    <link rel="stylesheet" href="{{ asset('assets/css/user-panel.css') }}">
+    @if ($primaryRgb)
+        <style>
+            :root {
+                --tblr-primary: {{ $primaryColor }};
+                --tblr-primary-rgb: {{ $primaryRgb }};
+            }
+        </style>
+    @endif
+    @stack('styles')
 </head>
 
 <body>
-    @include('frontend.user.includes.navbar')
-    <!-- Sections:Start -->
-    <div data-bs-spy="scroll" class="scrollspy-example">
-      <section id="landingArticles" class="section-py b-articles" data-aos="fade-up" data-aos-duration="1000">
-        <div class="container">
-          <div class="row row-cols-auto justify-content-between g-2 mb-4">
-            <div>
-              @if (!request()->routeIs('checkout.proccess'))
-                <h3 class="mb-2">@yield('title')</h3>
-                @include('frontend.user.includes.breadcrumb')
-              @endif
-            </div>
-            <div>
-              @hasSection('back')
-                <div class="col">
-                  <a href="@yield('back')" class="btn btn-light btn-md px-3"><i
-                    class="ti ti-arrow-left me-2"></i>{{ lang('back', 'account') }}</a>
+    <script src="{{ asset('assets/vendor/libs/tabler/js/tabler-theme.min.js') }}"></script>
+    <div class="page">
+        @include('frontend.user.includes.sidebar')
+        <div class="page-wrapper">
+            @include('frontend.user.includes.navbar')
+            @hasSection('page-title')
+                <div class="page-header d-print-none">
+                    <div class="container-xl">
+                        <div class="row g-2 align-items-center">
+                            <div class="col">
+                                @hasSection('page-pretitle')
+                                    <div class="page-pretitle">@yield('page-pretitle')</div>
+                                @endif
+                                <h2 class="page-title">@yield('page-title')</h2>
+                            </div>
+                            @hasSection('page-actions')
+                                <div class="col-auto ms-auto d-print-none">
+                                    <div class="btn-list">@yield('page-actions')</div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
-              @endif
-            </div>
-          </div>
-
-          <div>
-          @if (
-            !request()->routeIs('checkout.index') &&
-              auth()->user()->isSubscribed())
-            @if (!auth()->user()->subscription->isCancelled())
-              @if (auth()->user()->subscription->isAboutToExpire())
-                <div class="alert alert-warning">
-                  <h5 class="mb-3"><i
-                    class="fa-solid fa-triangle-exclamation me-2"></i>{{ lang('Action Required!', 'account') }}
-                  </h5>
-                  <p class="mb-0">{{ lang('subscription about to expire notice', 'account') }}
-                  </p>
-                </div>
-              @elseif(auth()->user()->subscription->isExpired())
-                <div class="alert alert-danger">
-                  <h5 class="mb-3"><i
-                    class="fa-solid fa-triangle-exclamation me-2"></i>{{ lang('Action Required!', 'account') }}
-                  </h5>
-                  <p class="mb-0">{{ lang('subscription expired notice', 'account') }}</p>
-                </div>
-              @endif
-            @else
-              <div class="alert alert-danger">
-                <p class="mb-0"><i
-                  class="fa-solid fa-triangle-exclamation me-2"></i>{{ lang('subscription cancelled notice', 'account') }}
-                </p>
-              </div>
             @endif
-          @endif
-          </div>
-
-          <div class="row gy-4 mb-4">
-            @yield('content')
-          </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    @include('frontend.user.includes.subscription-alerts')
+                    @yield('content')
+                </div>
+            </div>
+            @include('frontend.user.includes.footer')
         </div>
-      </section>
     </div>
-    @include('frontend.user.includes.footer')
     @include('frontend.configurations.config')
+    <script src="{{ asset('assets/vendor/libs/jquery/jquery.js') }}"></script>
+    <script src="{{ asset('assets/vendor/libs/tabler/js/tabler.min.js') }}"></script>
+    <script src="{{ asset('assets/vendor/libs/toastr/toastr.js') }}"></script>
+    <script src="{{ asset('assets/vendor/libs/clipboard/clipboard.min.js') }}"></script>
+    @stack('scripts_libs')
+    <script src="{{ asset('assets/js/panel-theme.js') }}"></script>
+    <script src="{{ asset('assets/js/user-panel.js') }}"></script>
+    @stack('scripts')
     @include('frontend.configurations.widgets')
-    @include('frontend.global.scripts')
+    @toastr_render
 </body>
 
 </html>

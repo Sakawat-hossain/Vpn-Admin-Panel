@@ -32,7 +32,7 @@ class OSDetector
 
     public static function os($agent = null)
     {
-        $agent = ($agent) ? $agent : $_SERVER['HTTP_USER_AGENT'];
+        $agent = ($agent) ? $agent : (string) request()->userAgent();
         $os = "Other";
         foreach (self::OS_SYSTEMS as $key => $value) {
             if (preg_match($key, $agent)) {

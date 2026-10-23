@@ -1,0 +1,74 @@
+/* User panel tweaks on top of Tabler (assets/vendor/libs/tabler). */
+
+.navbar-brand-image {
+  height: 2rem;
+  width: auto;
+}
+
+.server-flag {
+  width: 1.75rem;
+  height: 1.3125rem;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--tblr-border-color);
+  flex-shrink: 0;
+}
+
+.connect-steps {
+  padding-left: 1.25rem;
+}
+
+.connect-steps li + li {
+  margin-top: 0.375rem;
+}
+
+/* Avatar picker on the account details page. */
+.avatar-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-picker label {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  cursor: pointer;
+}
+
+/* Payment method radio cards on checkout. */
+.payment-option .form-selectgroup-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: start;
+}
+
+.payment-option img {
+  height: 1.75rem;
+  width: auto;
+  max-width: 6rem;
+  object-fit: contain;
+}
+
+/* Toastr ships light-only colours; keep text readable in dark mode. */
+[data-bs-theme="dark"] #toast-container > div {
+  box-shadow: none;
+}
+
+.server-flag-sm {
+  width: 1.25rem;
+  height: 0.9375rem;
+  vertical-align: -2px;
+}
+
+/* Server search: full width under the title on phones, top-right from md. */
+.server-search-wrap {
+  width: 100%;
+  margin-inline-start: 0;
+}
+
+@media (min-width: 768px) {
+  .server-search-wrap {
+    width: auto;
+    margin-inline-start: auto;
+  }
+}

@@ -19,7 +19,7 @@ class BrowserDetector
 
     public static function browser($agent = null)
     {
-        $agent = ($agent) ? $agent : $_SERVER['HTTP_USER_AGENT'];
+        $agent = ($agent) ? $agent : (string) request()->userAgent();
         $browser = "Other";
         foreach (self::BROWSERS as $key => $value) {
             if (preg_match($key, $agent)) {
