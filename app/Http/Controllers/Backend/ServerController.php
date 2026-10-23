@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Backend;
 
 use App\Exceptions\WgEasyException;
 use App\Http\Controllers\Controller;
+use App\Jobs\ConfigOpenVpnServer;
 use App\Jobs\ConfigServer;
 use App\Models\ConfigServerAction;
 use App\Models\ConfigServerJob;
 use App\Models\Server;
+use App\Services\OpenVpnPki;
 use App\Services\WgEasyClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,7 +82,8 @@ class ServerController extends Controller
      */
     public function store(Request $request)
     {
-        $install = $request->installWgEasy === 'on' && !$request->isOVPN;
+        // Installing over SSH: wg-easy for WireGuard, OpenVPN for panel-managed OpenVPN.
+        $install = $request->install === 'on' && $request->vpn_type !== self::TYPE_OPENVPN_PROFILE;
         $validator = Validator::make($request->all(), $this->rules($request) + ($install ? $this->sshRules() : []));
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -101,14 +104,17 @@ class ServerController extends Controller
     }
 
     /**
-     * (Re)install wg-easy on an existing server. Existing peers are kept
-     * (they live in ~/.wg-easy on the VPS); this also applies the API password
-     * and firewall to servers deployed by older versions of the panel.
+     * (Re)install the server software over SSH.
+     *
+     * WireGuard: reinstalls wg-easy; existing peers are kept (they live in
+     * ~/.wg-easy on the VPS), and the API password and firewall get applied to
+     * servers deployed by older versions of the panel.
+     * Panel-managed OpenVPN: reinstalls OpenVPN with a fresh server certificate.
      */
     public function deploy(Request $request, Server $server)
     {
-        if ($server->isOpenVpn()) {
-            toastr()->error(admin_lang('wg-easy cannot be installed on an OpenVPN server'));
+        if ($server->isOpenVpn() && !$server->isManagedOpenVpn()) {
+            toastr()->error(admin_lang('This OpenVPN server uses a pasted profile; the panel cannot install it'));
             return back();
         }
         $validator = Validator::make($request->all(), $this->sshRules());
@@ -143,7 +149,26 @@ class ServerController extends Controller
         $action->result = "Started";
         $action->save();
 
-        ConfigServer::dispatch($job, (string) $request->vps_username, (string) $request->vps_password);
+        if ($server->isManagedOpenVpn()) {
+            ConfigOpenVpnServer::dispatch($job, (string) $request->vps_username, (string) $request->vps_password);
+        } else {
+            ConfigServer::dispatch($job, (string) $request->vps_username, (string) $request->vps_password);
+        }
+    }
+
+    /**
+     * The CA certificate and tls-auth key of the panel-managed OpenVPN
+     * servers, to bundle into the client apps. Neither is secret on its own:
+     * users still need their own login to connect.
+     */
+    public function downloadPki(OpenVpnPki $pki, string $file)
+    {
+        $contents = $file === 'ca.crt' ? $pki->caCertificate() : $pki->tlsAuthKey();
+        return response($contents, 200, [
+            'Content-Type' => 'application/x-pem-file',
+            'Content-Disposition' => 'attachment; filename="' . $file . '"',
+            'Cache-Control' => 'no-store, private',
+        ]);
     }
 
     /**
@@ -156,7 +181,9 @@ class ServerController extends Controller
     {
         $logs = [];
         $error = null;
-        if ($server->isOpenVpn()) {
+        if ($server->isManagedOpenVpn()) {
+            $error = admin_lang('This is a panel-managed OpenVPN server: users sign in with their own account, so there is no peer list.');
+        } elseif ($server->isOpenVpn()) {
             $error = admin_lang('This is an OpenVPN server; peers are not managed by the panel.');
         } else {
             try {
@@ -230,22 +257,33 @@ class ServerController extends Controller
         return back();
     }
 
+    public const TYPE_WIREGUARD = 'wireguard';
+    public const TYPE_OPENVPN = 'openvpn';
+    public const TYPE_OPENVPN_PROFILE = 'openvpn_profile';
+
     private function rules(Request $request): array
     {
+        $managedOpenVpn = $request->vpn_type === self::TYPE_OPENVPN;
         return [
+            'vpn_type' => ['required', 'in:' . implode(',', [self::TYPE_WIREGUARD, self::TYPE_OPENVPN, self::TYPE_OPENVPN_PROFILE])],
             'country' => ['required', 'string', 'max:191'],
             'state' => ['required', 'string', 'max:191'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'status' => ['required', 'in:0,1'],
-            'ip_address' => ['required', 'string', 'max:191', function ($attribute, $value, $fail) {
-                if (!filter_var($value, FILTER_VALIDATE_IP) && !filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
+            'ip_address' => ['required', 'string', 'max:191', function ($attribute, $value, $fail) use ($managedOpenVpn) {
+                if ($managedOpenVpn) {
+                    // The client apps connect to the host by IP.
+                    if (!filter_var($value, FILTER_VALIDATE_IP)) {
+                        $fail(admin_lang('A panel-managed OpenVPN server needs an IP address, not a hostname'));
+                    }
+                } elseif (!filter_var($value, FILTER_VALIDATE_IP) && !filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
                     $fail(admin_lang('The IP address must be a valid IP or hostname'));
                 }
             }],
             'recommended' => ['required', 'in:0,1'],
             'is_premium' => ['required', 'in:0,1'],
-            'ovpn_config' => $request->isOVPN ? ['required', 'string', 'max:100000', function ($attribute, $value, $fail) {
+            'ovpn_config' => $request->vpn_type === self::TYPE_OPENVPN_PROFILE ? ['required', 'string', 'max:100000', function ($attribute, $value, $fail) {
                 if ($error = self::ovpnConfigError($value)) {
                     $fail($error);
                 }
@@ -273,8 +311,9 @@ class ServerController extends Controller
             'ip_address' => $request->ip_address,
             'recommended' => $request->recommended,
             'is_premium' => $request->is_premium,
-            'is_ovpn' => $request->isOVPN ? 1 : 0,
-            'ovpn_config' => $request->isOVPN ? self::normalizeOvpnConfig($request->ovpn_config) : '',
+            'is_ovpn' => $request->vpn_type === self::TYPE_WIREGUARD ? 0 : 1,
+            'ovpn_managed' => $request->vpn_type === self::TYPE_OPENVPN,
+            'ovpn_config' => $request->vpn_type === self::TYPE_OPENVPN_PROFILE ? self::normalizeOvpnConfig($request->ovpn_config) : '',
         ];
     }
 

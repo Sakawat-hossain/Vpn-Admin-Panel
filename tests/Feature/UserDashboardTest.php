@@ -7,6 +7,8 @@ use App\Models\Server;
 use App\Models\Settings;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\VpnSession;
+use App\Services\OpenVpnPki;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -33,6 +35,7 @@ class UserDashboardTest extends TestCase
 
         $this->freePlan = Plan::create(['name' => 'Free', 'product_id' => 'free', 'interval' => 1, 'price' => 0, 'is_free' => 1]);
         $this->premiumPlan = Plan::create(['name' => 'Pro', 'product_id' => 'pro', 'interval' => 1, 'price' => 9.99, 'is_free' => 0]);
+        $this->app->instance(OpenVpnPki::class, new OpenVpnPki(sys_get_temp_dir() . '/ovpn-pki-' . uniqid()));
     }
 
     private function makeUser(bool $premium = false, array $attributes = []): User
@@ -181,5 +184,32 @@ class UserDashboardTest extends TestCase
                 ->assertSee('tabler.min.css', false)
                 ->assertSee(route('user.dashboard'), false);
         }
+    }
+
+    public function test_managed_openvpn_server_downloads_a_generated_login_profile()
+    {
+        $server = $this->makeServer(['is_ovpn' => 1, 'ovpn_managed' => 1, 'ovpn_config' => '']);
+
+        $profile = $this->actingAs($this->makeUser())->get(route('user.servers.openvpn', $server->id))->assertOk()->getContent();
+
+        $this->assertStringContainsString('auth-user-pass', $profile);
+        $this->assertStringContainsString("remote {$server->ip_address} 1194", $profile);
+        $this->assertStringContainsString('<ca>', $profile);
+    }
+
+    public function test_devices_page_lists_and_signs_out_sessions()
+    {
+        $user = $this->makeUser();
+        [$session] = VpnSession::start($user, 'Windows PC', '198.51.100.9');
+        [$other] = VpnSession::start($this->makeUser(), 'Not mine', null);
+
+        $this->actingAs($user)->get(route('user.devices'))->assertOk()
+            ->assertSee('Windows PC')
+            ->assertDontSee('Not mine');
+
+        $this->actingAs($user)->delete(route('user.devices.destroy', $other->id))->assertNotFound();
+        $this->actingAs($user)->delete(route('user.devices.destroy', $session->id))->assertRedirect(route('user.devices'));
+        $this->assertNull(VpnSession::find($session->id));
+        $this->assertNotNull(VpnSession::find($other->id));
     }
 }

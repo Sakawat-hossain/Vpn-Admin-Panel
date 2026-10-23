@@ -2,8 +2,18 @@
 @section('title', admin_lang('Servers'))
 @section('add_modal', admin_lang('Add New'))
 @section('content')
-    
-    
+    <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="me-auto">
+                <div class="fw-bold">{{ admin_lang('OpenVPN certificate for the apps') }}</div>
+                <div class="text-secondary small">
+                    {{ admin_lang('Every panel-managed OpenVPN server uses this CA and tls-auth key. Bundle both into the desktop/mobile apps; users still sign in with their own account.') }}
+                </div>
+            </div>
+            <a href="{{ route('admin.openvpn.pki', 'ca.crt') }}" class="btn"><i class="ti ti-download icon"></i>ca.crt</a>
+            <a href="{{ route('admin.openvpn.pki', 'ta.key') }}" class="btn"><i class="ti ti-download icon"></i>ta.key</a>
+        </div>
+    </div>
     <div class="card custom-card">
     <div class="card custom-card custom-tabs mb-3">
         <div class="card-body">
@@ -45,7 +55,16 @@
                         @foreach ($freeServers as $row)
                             <tr>
                                 <td>{{ $row->id }}</td>
-                                <td>{{ $row->country }}</td>
+                                <td>
+                                    {{ $row->country }}
+                                    @if ($row->isManagedOpenVpn())
+                                        <span class="badge bg-orange-lt ms-1">OpenVPN</span>
+                                    @elseif ($row->isOpenVpn())
+                                        <span class="badge bg-secondary-lt ms-1">OpenVPN profile</span>
+                                    @else
+                                        <span class="badge bg-blue-lt ms-1">WireGuard</span>
+                                    @endif
+                                </td>
                                 <td>{{ $row->state }}</td>
                                 <td>
                                     <button type="button" class="btn btn-{{ $row->status === 0 ? 'danger' : 'primary' }} rounded-3">
@@ -117,7 +136,16 @@
                         @foreach ($premiumServers as $row)
                             <tr>
                                 <td>{{ $row->id }}</td>
-                                <td>{{ $row->country }}</td>
+                                <td>
+                                    {{ $row->country }}
+                                    @if ($row->isManagedOpenVpn())
+                                        <span class="badge bg-orange-lt ms-1">OpenVPN</span>
+                                    @elseif ($row->isOpenVpn())
+                                        <span class="badge bg-secondary-lt ms-1">OpenVPN profile</span>
+                                    @else
+                                        <span class="badge bg-blue-lt ms-1">WireGuard</span>
+                                    @endif
+                                </td>
                                 <td>{{ $row->state }}</td>
                                 <td>
                                     <button type="button" class="btn btn-{{ $row->status === 0 ? 'danger' : 'primary' }} rounded-3" onclick="view_detail({{ $row->id }})">
@@ -248,9 +276,17 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="installWgEasy" name="installWgEasy">
-                            <label class="form-check-label" for="installWgEasy">Install Wg Easy?</label>
+                        <div class="mb-4">
+                            <label class="form-label" for="vpn_type">{{ admin_lang('Protocol') }} : <span class="text-danger">*</span></label>
+                            <select name="vpn_type" id="vpn_type" class="form-select" required>
+                                <option value="wireguard">{{ admin_lang('WireGuard (wg-easy)') }}</option>
+                                <option value="openvpn">{{ admin_lang('OpenVPN, managed by the panel (users sign in with their account)') }}</option>
+                                <option value="openvpn_profile">{{ admin_lang('OpenVPN, pasted profile (one shared profile)') }}</option>
+                            </select>
+                        </div>
+                        <div class="form-check form-switch mb-2 install-toggle">
+                            <input class="form-check-input" type="checkbox" id="install" name="install">
+                            <label class="form-check-label" for="install" id="install-label">{{ admin_lang('Install on this VPS over SSH') }}</label>
                         </div>
                         <div class="mb-4 install">
                             <label class="form-label">{{ admin_lang('SSH Port') }} : <span class="text-danger">*</span></label>
@@ -263,10 +299,6 @@
                         <div class="mb-4 install">
                             <label class="form-label">{{ admin_lang('VPS Password') }} : <span class="text-danger">*</span></label>
                             <input type="password" name="vps_password" id="vps_password" class="form-control" autocomplete="new-password"/>
-                        </div>
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="isOVPN" name="isOVPN">
-                            <label class="form-check-label" for="isOVPN">Is OVPN?</label>
                         </div>
                         <div class="mb-4 ovpn">
                             <label class="form-label">{{ admin_lang('OVPN Config') }} :</label>
@@ -305,35 +337,27 @@
 @push('scripts_libs')
 <script>
     $(function() {
-        // wg easy
-        $("#installWgEasy").on('change', function () {
-            if ($(this).is(':checked')) {
-                $('.install').show()
-                $("#ssh_port").attr("required", true)
-                $("#vps_username").attr("required", true)
-                $("#vps_password").attr("required", true)
-            } else {
-                $('.install').hide()
-                $("#ssh_port").removeAttr("required")
-                $("#vps_username").removeAttr("required")
-                $("#vps_password").removeAttr("required")
-            }
-        })
-        $("#installWgEasy").prop("checked", false)
-        $('.install').hide()
-
-        // ovpn config
-        $("#isOVPN").on('change', function () {
-            if ($(this).is(':checked')) {
-                $('.ovpn').show()
-                $("#ovpn_config").attr("required", true)
-            } else {
-                $('.ovpn').hide()
-                $("#ovpn_config").removeAttr("required")
-            }
-        })
-        $("#isOVPN").prop("checked", false)
-        $('.ovpn').hide()
+        // SSH install (wg-easy or OpenVPN)
+        function toggleInstall() {
+            const on = $("#install").is(':checked') && $("#vpn_type").val() !== 'openvpn_profile'
+            $('.install').toggle(on)
+            $("#ssh_port, #vps_username, #vps_password").prop("required", on)
+        }
+        // Protocol: the pasted-profile type needs the profile and can't be installed.
+        function toggleType() {
+            const type = $("#vpn_type").val()
+            $('.ovpn').toggle(type === 'openvpn_profile')
+            $("#ovpn_config").prop("required", type === 'openvpn_profile')
+            $('.install-toggle').toggle(type !== 'openvpn_profile')
+            $('#install-label').text(type === 'openvpn'
+                ? "{{ admin_lang('Install OpenVPN on this VPS over SSH') }}"
+                : "{{ admin_lang('Install wg-easy on this VPS over SSH') }}")
+            toggleInstall()
+        }
+        $("#install").on('change', toggleInstall)
+        $("#vpn_type").on('change', toggleType)
+        $("#install").prop("checked", false)
+        toggleType()
     })
     
     function escapeHtml(text) {

@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\ServerController;
 use App\Http\Controllers\Api\ValidateReceiptController;
+use App\Http\Controllers\Api\Client\OpenVpnAuthController;
+use App\Http\Controllers\Api\Client\ServerListController;
+use App\Http\Controllers\Api\Client\SessionController as ClientSessionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,6 +60,24 @@ Route:: as('api.')->prefix('v1')->group(function () {
             ->middleware(['auth:api', 'api.active'])
             ->name('server-connect');
     });
+});
+
+// Client apps (IVPN-based desktop/mobile apps): IVPN client API shapes under
+// /api/client. See App\Http\Controllers\Api\Client.
+Route::as('api.client.')->prefix('client')->group(function () {
+    Route::post('v4/session/new', [ClientSessionController::class, 'create'])->name('session.new');
+    Route::post('v4/session/status', [ClientSessionController::class, 'status'])->name('session.status');
+    Route::post('v4/session/delete', [ClientSessionController::class, 'delete'])->name('session.delete');
+    Route::post('v4/session/wg/set', [ClientSessionController::class, 'wireguardKeySet'])->name('session.wg');
+    Route::get('v4/geo-lookup', [ServerListController::class, 'geoLookup'])->name('geo-lookup');
+    Route::get('v5/servers.json', [ServerListController::class, 'servers'])
+        ->middleware('with_fast_api_key')->name('servers');
+
+    // Called by the OpenVPN servers for every connecting user. One server IP
+    // carries many users, so the per-IP API throttle doesn't apply; the
+    // controller limits failed attempts per username instead.
+    Route::post('openvpn/auth', OpenVpnAuthController::class)
+        ->withoutMiddleware('throttle:api')->name('openvpn.auth');
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

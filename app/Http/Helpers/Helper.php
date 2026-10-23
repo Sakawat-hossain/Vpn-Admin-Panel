@@ -1223,6 +1223,19 @@ function freePlan()
 }
 
 /**
+ * How many devices a user may be signed in on at once in the client apps
+ * (Settings > General > Device Limit). 0 = no limit.
+ */
+function deviceLimit()
+{
+    try {
+        return max(0, (int) (settings('general')->active_device_limit ?? 0));
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}
+
+/**
  * Generate a 6-digit numeric code with a cryptographically secure RNG.
  */
 function generateVerificationCode()

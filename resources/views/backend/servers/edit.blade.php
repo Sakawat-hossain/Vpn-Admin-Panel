@@ -75,9 +75,16 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" id="isOVPN" name="isOVPN"{{ $server->is_ovpn == 1 ? 'checked' : '' }}>
-                    <label class="form-check-label" for="isOVPN">Is OVPN?</label>
+                @php
+                    $vpnType = $server->isManagedOpenVpn() ? 'openvpn' : ($server->isOpenVpn() ? 'openvpn_profile' : 'wireguard');
+                @endphp
+                <div class="mb-4">
+                    <label class="form-label" for="vpn_type">{{ admin_lang('Protocol') }} : <span class="text-danger">*</span></label>
+                    <select name="vpn_type" id="vpn_type" class="form-select" required>
+                        <option value="wireguard" {{ $vpnType === 'wireguard' ? 'selected' : '' }}>{{ admin_lang('WireGuard (wg-easy)') }}</option>
+                        <option value="openvpn" {{ $vpnType === 'openvpn' ? 'selected' : '' }}>{{ admin_lang('OpenVPN, managed by the panel (users sign in with their account)') }}</option>
+                        <option value="openvpn_profile" {{ $vpnType === 'openvpn_profile' ? 'selected' : '' }}>{{ admin_lang('OpenVPN, pasted profile (one shared profile)') }}</option>
+                    </select>
                 </div>
                 <div class="mb-4 ovpn">
                     <label class="form-label">{{ admin_lang('OVPN Config') }} :</label>
@@ -86,15 +93,22 @@
             </div>
         </div>
     </form>
-    @if ($server->is_ovpn != 1)
+    @if (!$server->isOpenVpn() || $server->isManagedOpenVpn())
         <form action="{{ route('admin.servers.deploy', $server->id) }}" method="POST" class="mt-4">
             @csrf
             <div class="card p-2">
                 <div class="card-body">
-                    <h6 class="mb-1">{{ admin_lang('Redeploy wg-easy') }}</h6>
-                    <p class="text-muted small mb-3">
-                        {{ admin_lang('Reinstalls wg-easy on this server with an API password and a firewall that only lets the panel reach the API. Existing peers are kept. Run this once on servers deployed before this update.') }}
-                    </p>
+                    @if ($server->isManagedOpenVpn())
+                        <h6 class="mb-1">{{ admin_lang('Install / redeploy OpenVPN') }}</h6>
+                        <p class="text-muted small mb-3">
+                            {{ admin_lang('Installs OpenVPN with the panel certificate and the account login check. Redeploying keeps users\' logins working; it only replaces the server certificate and settings.') }}
+                        </p>
+                    @else
+                        <h6 class="mb-1">{{ admin_lang('Redeploy wg-easy') }}</h6>
+                        <p class="text-muted small mb-3">
+                            {{ admin_lang('Reinstalls wg-easy on this server with an API password and a firewall that only lets the panel reach the API. Existing peers are kept. Run this once on servers deployed before this update.') }}
+                        </p>
+                    @endif
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label class="form-label">{{ admin_lang('SSH Port') }} : <span class="text-danger">*</span></label>
@@ -120,23 +134,14 @@
   let g_state = '{{ $state = $server->state ?? old('state')}}'
 
   $(function() {
-    // ovpn config
-    $("#isOVPN").on('change', function () {
-        if ($(this).is(':checked')) {
-            $('.ovpn').show()
-            $("#ovpn_config").attr("required", true)
-        } else {
-            $('.ovpn').hide()
-            $("#ovpn_config").removeAttr("required")
-        }
-    })
-    @if ($server->is_ovpn == 1)
-        $("#isOVPN").prop("checked", true)
-        $('.ovpn').show()
-    @else
-        $("#isOVPN").removeAttr("checked")
-        $('.ovpn').hide()
-    @endif
+    // The pasted profile is only used by the "pasted profile" type.
+    function toggleType() {
+        const pasted = $("#vpn_type").val() === 'openvpn_profile'
+        $('.ovpn').toggle(pasted)
+        $("#ovpn_config").prop("required", pasted)
+    }
+    $("#vpn_type").on('change', toggleType)
+    toggleType()
   })
 
   //get state

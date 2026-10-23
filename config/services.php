@@ -52,6 +52,19 @@ return [
         'default_dns' => env('WG_EASY_DEFAULT_DNS', '1.1.1.1'),
     ],
 
+    // Panel-managed OpenVPN servers (App\Jobs\ConfigOpenVpnServer). Port and
+    // protocol are the same on every server: the client apps take them from
+    // the server list's global "ports" section.
+    'openvpn' => [
+        'port' => (int) env('OPENVPN_PORT', 1194),
+        'proto' => strtolower(env('OPENVPN_PROTO', 'udp')) === 'tcp' ? 'tcp' : 'udp',
+        'subnet' => env('OPENVPN_SUBNET', '10.89.0.0 255.255.0.0'),
+        'dns' => env('OPENVPN_DNS', '1.1.1.1,8.8.8.8'),
+        // URL the VPN servers use to check user logins. Defaults to APP_URL;
+        // set it when servers must reach the panel by another address.
+        'auth_url' => env('OPENVPN_AUTH_URL'),
+    ],
+
     // Only honour Cloudflare's CF-Connecting-IP header when the site really sits
     // behind Cloudflare; otherwise any client could spoof its logged IP.
     'cloudflare' => [

@@ -55,6 +55,8 @@ Route::group(localizeOptions(), function () {
             });
             Route::get('dashboard', 'DashboardController@index')->name('user.dashboard');
             Route::get('servers/{server}/openvpn', 'ServerController@openvpn')->name('user.servers.openvpn');
+            Route::get('devices', 'DevicesController@index')->name('user.devices');
+            Route::delete('devices/{session}', 'DevicesController@destroy')->name('user.devices.destroy');
             Route::name('checkout.')->prefix('checkout')->group(function () {
                 Route::get('{checkout_id}', 'CheckoutController@index')->name('index');
                 Route::post('{checkout_id}/coupon/apply', 'CheckoutController@applyCoupon')->name('coupon.apply');

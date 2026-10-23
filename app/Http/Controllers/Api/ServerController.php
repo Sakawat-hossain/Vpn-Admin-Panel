@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\RevokeWireGuardPeer;
 use App\Models\Server;
 use App\Models\User;
+use App\Services\OpenVpnProfile;
 use App\Services\WgEasyClient;
 use Illuminate\Http\Request;
 
@@ -67,14 +68,17 @@ class ServerController extends Controller
 
         // OpenVPN server: hand back the stored .ovpn profile (no wg-easy involved).
         if ($server->isOpenVpn()) {
-            if (trim((string) $server->ovpn_config) === '') {
+            $profile = app(OpenVpnProfile::class)->clientProfile($server);
+            if (trim($profile) === '') {
                 return responseError(503, __('This server is not configured yet'));
             }
             $this->assignServer($user, $server);
             return response200([
                 'client_id' => 'ovpn' . $user->id,
                 'protocol' => 'openvpn',
-                'conf' => $server->ovpn_config,
+                // Panel-managed servers ask for a login: the account email and password.
+                'auth_required' => $server->isManagedOpenVpn(),
+                'conf' => $profile,
             ], __('Connection Success'));
         }
 

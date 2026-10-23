@@ -3,6 +3,7 @@
         ['route' => 'user.dashboard', 'icon' => 'ti-layout-dashboard', 'label' => lang('Dashboard', 'account')],
         ['route' => 'user.settings.subscription', 'icon' => 'ti-diamond', 'label' => lang('My Subscription', 'account')],
         ['route' => 'user.settings.payment-history', 'icon' => 'ti-receipt', 'label' => lang('Payment History', 'account')],
+        ['route' => 'user.devices', 'icon' => 'ti-devices', 'label' => lang('Devices', 'account')],
     ];
     $settingsLinks = [
         ['route' => 'user.settings.index', 'icon' => 'ti-user-edit', 'label' => lang('Account details', 'account')],

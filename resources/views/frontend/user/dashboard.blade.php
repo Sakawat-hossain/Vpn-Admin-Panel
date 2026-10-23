@@ -293,6 +293,7 @@
                         <li>{{ lang('Install an OpenVPN app on your device.', 'account') }}</li>
                         <li>{{ lang('Download the .ovpn profile of a server from the list above.', 'account') }}</li>
                         <li>{{ lang('Open the file with the app (or import it) and connect.', 'account') }}</li>
+                        <li>{{ lang('If the app asks for a username and password, use your account email and password.', 'account') }}</li>
                     </ol>
                     <div class="btn-list">
                         <a href="https://openvpn.net/client/" target="_blank" rel="noopener" class="btn btn-sm">

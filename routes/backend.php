@@ -48,6 +48,8 @@ Route::group(['prefix' => adminPath(), 'namespace' => 'Backend'], function () {
             });
             Route::resource('users', 'UserController');
 
+            Route::get('openvpn-pki/{file}', 'ServerController@downloadPki')
+                ->where('file', 'ca\\.crt|ta\\.key')->name('openvpn.pki');
             Route::resource('servers', 'ServerController');
             Route::get('servers/{server}/deploy', 'ServerController@getDeployment')->middleware('ajax.only');
             Route::post('servers/{server}/deploy', 'ServerController@deploy')->name('servers.deploy');

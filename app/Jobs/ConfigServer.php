@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Exceptions\WgEasyException;
-use App\Models\ConfigServerAction;
+use App\Jobs\Concerns\RunsServerSetup;
 use App\Models\ConfigServerJob;
 use App\Models\Server;
 use App\Services\WgEasyClient;
@@ -13,7 +13,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -25,7 +24,7 @@ use Throwable;
  */
 class ConfigServer implements ShouldQueue, ShouldBeEncrypted
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, RunsServerSetup;
 
     // Docker install + image pull can be slow (China mirrors). Keep this below
     // the queue's retry_after (QUEUE_RETRY_AFTER, 900s) so the job is never
@@ -100,60 +99,6 @@ class ConfigServer implements ShouldQueue, ShouldBeEncrypted
         $action = $this->startAction(99, 'Job error');
         $this->finishAction($action, 1, $this->redact($e->getMessage()));
         $this->finish(false);
-    }
-
-    /**
-     * Run a bash script on the VPS as root. Returns [exitCode, output].
-     */
-    private function runRemote(string $script): array
-    {
-        $ip = $this->configJob->ip;
-        $port = (int) $this->configJob->ssh_port;
-
-        $knownHosts = storage_path('app/ssh/known_hosts');
-        File::ensureDirectoryExists(dirname($knownHosts), 0700);
-
-        // The remote login shell expands ${SSH_CLIENT%% *} to the panel's IP as the
-        // VPS sees it; the script uses it to restrict the wg-easy API port.
-        $remote = 'bash -s -- "${SSH_CLIENT%% *}"';
-        if ($this->vpsUsername !== 'root') {
-            $remote = 'sudo -n ' . $remote;
-        }
-
-        // sshpass -e reads the password from $SSHPASS, so it never appears in the
-        // command line (ps) or in any log.
-        $command = implode(' ', [
-            'sshpass -e ssh',
-            '-p ' . $port,
-            '-o ' . escapeshellarg('UserKnownHostsFile=' . $knownHosts),
-            '-o StrictHostKeyChecking=accept-new',
-            '-o ConnectTimeout=30',
-            '-o LogLevel=ERROR',
-            escapeshellarg($this->vpsUsername . '@' . $ip),
-            escapeshellarg($remote),
-            '2>&1',
-        ]);
-
-        $env = array_merge(getenv(), ['SSHPASS' => $this->vpsPassword]);
-        $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w']], $pipes, null, $env);
-        if (!is_resource($process)) {
-            return [-1, 'Could not start ssh (is sshpass installed on the panel server?)'];
-        }
-        fwrite($pipes[0], $script);
-        fclose($pipes[0]);
-        $output = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        $resultCode = proc_close($process);
-
-        if ($resultCode === 6 || str_contains($output, 'REMOTE HOST IDENTIFICATION HAS CHANGED')) {
-            $output .= "\nThe VPS host key changed since the last deployment. If the VPS was reinstalled, "
-                . "remove its line from storage/app/ssh/known_hosts on the panel and redeploy.";
-        }
-        if ($resultCode === 5) {
-            $output .= "\nSSH login failed: wrong VPS username or password.";
-        }
-
-        return [$resultCode, $this->redact(trim($output))];
     }
 
     /**
@@ -309,41 +254,13 @@ BASH;
         return implode(',', $ips);
     }
 
-    private function redact(string $text): string
+    /**
+     * Secrets that must never show up in deployment logs.
+     *
+     * @return array<int, string|null>
+     */
+    private function secretsToRedact(): array
     {
-        foreach ([$this->vpsPassword, Server::find($this->configJob->server_id)?->wg_password] as $secret) {
-            if (is_string($secret) && $secret !== '') {
-                $text = str_replace($secret, '******', $text);
-            }
-        }
-        return $text;
-    }
-
-    private function startAction(int $order, string $name): ConfigServerAction
-    {
-        $action = new ConfigServerAction();
-        $action->config_job_id = $this->configJob->id;
-        $action->order = $order;
-        $action->result_code = -1;
-        $action->action = $name;
-        $action->result = 'Running...';
-        $action->save();
-        return $action;
-    }
-
-    private function finishAction(ConfigServerAction $action, int $resultCode, string $result): void
-    {
-        $action->result_code = $resultCode;
-        $action->result = $result;
-        $action->save();
-    }
-
-    private function finish(bool $success, ?string $message = null): void
-    {
-        $this->configJob->status = $success ? 'success' : 'failed';
-        if ($message !== null) {
-            $this->configJob->message = $message;
-        }
-        $this->configJob->save();
+        return [$this->vpsPassword, Server::find($this->configJob->server_id)?->wg_password];
     }
 }

@@ -172,6 +172,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(Subscription::class);
     }
 
+    public function vpnSessions()
+    {
+        return $this->hasMany(VpnSession::class);
+    }
+
     public function servers()
     {
         return $this->belongsTo(Server::class, 'server_id');

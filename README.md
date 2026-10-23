@@ -26,6 +26,25 @@ wg-easy API access is protected by a per-server password (sent in the
 `Authorization` header) and a firewall rule that only lets the panel's IP reach
 port 51821. Each wg-easy server holds at most 253 peers (one /24).
 
+### Panel-managed OpenVPN (for the new apps)
+
+A third server type, *OpenVPN, managed by the panel*: the panel installs
+OpenVPN over SSH (`App\Jobs\ConfigOpenVpnServer`) with its own CA
+(`App\Services\OpenVpnPki`, one CA + tls-auth key for every server) and an
+`auth-user-pass-verify` script that asks the panel about every login
+(`POST /api/client/openvpn/auth`). Users log in with their account email and
+password, or with the per-device credentials the apps get, so bans, expired
+plans and signed-out devices are refused per user.
+
+The desktop/mobile apps (based on the IVPN clients) talk to `/api/client`,
+which uses the IVPN client API's request/response shapes: `v4/session/new`,
+`status`, `delete`, `v5/servers.json`, `v4/geo-lookup`. See DEPLOYMENT.md
+section 17. Differences the app fork has to handle: the login sends the account
+email as `username` plus a `password` field; the API host, path prefix
+(`api/client/`) and TLS certificate pinning must be changed; `servers.json`
+needs the `x-api-key` header; the bundled `ca.crt`/`ta.key` come from Admin →
+Servers; WireGuard is not offered yet.
+
 ## User panel
 
 Signed-in users land on `/user/dashboard`: their plan and days left, the

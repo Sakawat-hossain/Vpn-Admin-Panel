@@ -441,6 +441,45 @@ Mobile-app visible changes:
   after 5 wrong attempts; requesting codes is limited to 3 per 15 minutes.
 - The register response no longer contains the verification code or token.
 
+## 17. Panel-managed OpenVPN and the client-app API
+
+This update adds a third server type and an API for the new desktop/mobile apps.
+
+1. Deploy as usual; the migration adds the `vpn_sessions` table (one row per
+   signed-in app device) and two server columns. Nothing else changes for
+   existing WireGuard or pasted-profile OpenVPN servers.
+2. Optional `.env` settings (defaults shown in `.env.example`): `OPENVPN_PORT`,
+   `OPENVPN_PROTO`, `OPENVPN_SUBNET`, `OPENVPN_DNS`, `OPENVPN_AUTH_URL`.
+   Choose port/protocol **before** installing servers and the apps; they are
+   the same for every server.
+3. The panel creates its OpenVPN CA and tls-auth key the first time they are
+   needed, in `storage/app/openvpn` (the CA key is encrypted with `APP_KEY`).
+   **Back this folder up** and never delete it: every server and every shipped
+   app depends on it. Rotating `APP_KEY` makes the CA key unreadable (servers
+   keep working, but new servers can't be installed until it is restored).
+4. Add a server: Admin → Servers → Add New → Protocol *OpenVPN, managed by the
+   panel*, enter its **IP address** (not a hostname), tick *Install OpenVPN on
+   this VPS over SSH*. Requirements on the VPS: Debian/Ubuntu (or RHEL-like with
+   EPEL), systemd, a TUN device (KVM, or OpenVZ/LXC with TUN enabled), and
+   outbound HTTPS to the panel: every user login is checked with
+   `POST {APP_URL}/api/client/openvpn/auth`. The last install step checks that.
+5. Users sign in with their account email and password (downloaded `.ovpn`
+   from the user dashboard), or with the per-device credentials the apps get
+   from `session/new`. Banned users, expired premium plans and signed-out
+   devices are refused at the next connection or renegotiation (hourly).
+6. Admin → Servers shows *ca.crt* / *ta.key* downloads: bundle both into the
+   desktop/mobile apps.
+7. Settings → General → *Device Limit* now limits how many app devices a user
+   can be signed in on (0 = unlimited). Users manage them at `/user/devices`.
+
+Client-app API (`/api/client`, IVPN client API shapes, every response carries
+an IVPN `status` code): `POST v4/session/new` (`username` = email, `password`,
+optional `confirmation` = 2FA code, `force`), `POST v4/session/status`,
+`POST v4/session/delete` (both take `session_token`), `GET v5/servers.json`
+(needs the `x-api-key` app key; lists panel-managed OpenVPN servers),
+`GET v4/geo-lookup`. WireGuard for the new apps is not available yet
+(`v4/session/wg/set` returns an error; `servers.json` has no WireGuard servers).
+
 ---
 
 ## SECURITY — secrets to rotate BEFORE going live

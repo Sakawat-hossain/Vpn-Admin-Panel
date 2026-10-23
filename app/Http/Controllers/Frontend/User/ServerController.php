@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Frontend\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server;
+use App\Services\OpenVpnProfile;
 use Illuminate\Support\Str;
 
 class ServerController extends Controller
@@ -22,7 +23,7 @@ class ServerController extends Controller
         abort_unless($server->isEnabled() && $server->isOpenVpn(), 404);
         abort_unless($user->canUseServer($server), 403, lang('A premium subscription is required for this server', 'account'));
 
-        $profile = (string) $server->ovpn_config;
+        $profile = app(OpenVpnProfile::class)->clientProfile($server);
         abort_if(trim($profile) === '', 404);
 
         $filename = Str::slug(settings('general')->site_name . ' ' . $server->country . ' ' . $server->state . ' ' . $server->id) . '.ovpn';

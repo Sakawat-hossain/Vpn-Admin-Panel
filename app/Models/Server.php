@@ -48,6 +48,7 @@ class Server extends Model
 		'recommended',
 		'is_premium',
 		'is_ovpn',
+		'ovpn_managed',
 		'ovpn_config',
     ];
 
@@ -60,6 +61,7 @@ class Server extends Model
     protected $hidden = [
         'ovpn_config',
         'wg_password',
+        'ovpn_secret',
     ];
 
     /**
@@ -69,6 +71,8 @@ class Server extends Model
      */
     protected $casts = [
         'wg_password' => 'encrypted',
+        'ovpn_secret' => 'encrypted',
+        'ovpn_managed' => 'boolean',
     ];
 
     public function users()
@@ -79,6 +83,15 @@ class Server extends Model
     public function isOpenVpn(): bool
     {
         return (int) $this->is_ovpn === 1;
+    }
+
+    /**
+     * OpenVPN installed by the panel: shares the panel CA and checks each
+     * user's login against the panel (see OpenVpnAuthController).
+     */
+    public function isManagedOpenVpn(): bool
+    {
+        return $this->isOpenVpn() && (bool) $this->ovpn_managed;
     }
 
     public function isPremium(): bool
