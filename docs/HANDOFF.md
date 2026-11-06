@@ -26,7 +26,7 @@ English. Business: a VPN service whose users are mostly in **China**. The old ap
 |---|---|---|
 | 141.11.76.19 | **Panel** (Debian, nginx, php-fpm) | code in `/opt/vpn-panel` (git checkout of the branch); `APP_URL=http://141.11.76.19` (no HTTPS yet); queue worker + cron must run |
 | 163.227.238.134 | **VPN server** (panel server #4, "Panel-managed OpenVPN", Brahmanbaria) | `openvpn-server@server`, udp/1194, NAT `10.89.0.0/16`. Old "vpnpanel" and "Nexora" panels were removed. Server #3 is a duplicate "OpenVPN profile" entry for the same IP; delete it |
-| 43.135.12.23 | **new OvpnPlus VPN server** (Tencent Cloud, Hong Kong, Debian 13, 2 CPU / 2 GB) | user's choice 2026-11-07. Fresh: only sshd. Private IP 10.5.0.16 behind Tencent NAT, so open ports in the Tencent security group. Claude's key: `~/.ssh/ovpnplus_app_ed25519` (root). Root password login is off (`prohibit-password`); bots were brute-forcing it |
+| 43.135.12.23 | **new OvpnPlus panel: https://app.ovpnplus.com** (Tencent Cloud, Hong Kong, Debian 13, 2 CPU / 2 GB) | installed 2026-11-07, see "New panel" below. Private IP 10.5.0.16 behind Tencent NAT: open ports in the Tencent security group. Claude's key: `~/.ssh/ovpnplus_app_ed25519` (root). Root password login is off (`prohibit-password`); bots were brute-forcing it |
 
 Server check on 2026-11-07 (second session):
 - 141.11.76.19 did not answer on ports 22 or 80, from the user's PC or from 163.227.238.134. Check it in the provider console.
@@ -38,6 +38,19 @@ Local checkout used by Claude sessions: `D:\My GitHub\OvpnPlus\Admin Panel` (pan
 The user's Windows PC: repo at `C:\Users\sakaw\desktop-app`. Go, Node 24, NSIS, CMake,
 VS 2022 Build Tools and MSYS2 gcc are installed. The user often types in **CMD** while
 the instructions are PowerShell: say which shell each command is for.
+
+## New panel on 43.135.12.23 (2026-11-07)
+
+- URL `https://app.ovpnplus.com`, admin at `/admin`. DNS is a Cloudflare record **not proxied** (points straight at the server). Let's Encrypt cert via certbot (`certbot.timer` renews).
+- Code: `/opt/vpn-panel`, git checkout of `claude/new-session-3l5u10`. Update: `git pull && composer install --no-dev -o && php artisan migrate --force && sudo -u www-data php artisan config:cache && systemctl restart ovpnplus-queue`.
+- PHP **8.2** from packages.sury.org: `composer.lock` pins packages that refuse PHP 8.4 (Debian 13's own). 56/56 tests pass on the server.
+- nginx site `ovpnplus-panel`, php8.2-fpm, MariaDB db/user `ovpnplus`, queue worker = systemd `ovpnplus-queue` (www-data), scheduler in `/etc/cron.d/ovpnplus-panel`.
+- Fresh database (no data from 141.11.76.19). Vendor admins and the demo server 38.180.79.202 were removed. Admin login is in `/root/ovpnplus-panel-admin.txt` (root only).
+- `APP_FAST_API_KEY` is **new** (only in `/opt/vpn-panel/.env`). The build script asks for it: `grep APP_FAST_API_KEY /opt/vpn-panel/.env`.
+- New OpenVPN CA/tls-crypt key in `/opt/vpn-panel/storage/app/openvpn/`; back it up off the server.
+- `MAIL_MAILER=log`: no e-mail is sent yet (verification codes, resets). Set SMTP in `.env` or admin settings.
+- Desktop build now: `.\build-ovpnplus.ps1 -PanelHost app.ovpnplus.com -PanelScheme https`.
+- To put the VPN on this same box through the panel's deploy job, the job needs root password SSH, which is now off; allow it only from the server itself or use another VPS.
 
 ## How it works
 
