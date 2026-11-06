@@ -52,6 +52,14 @@ the instructions are PowerShell: say which shell each command is for.
 - Desktop build now: `.\build-ovpnplus.ps1 -PanelHost app.ovpnplus.com -PanelScheme https`.
 - To put the VPN on this same box through the panel's deploy job, the job needs root password SSH, which is now off; allow it only from the server itself or use another VPS.
 
+## WARNING: 163.227.238.134 shares OpenVPN files (2026-11-07)
+
+The user added .134 to the new panel; the deploy succeeded (`openvpn-server@server`, udp/1194, tls-crypt). The deploy job of that time wrote `ca.crt`, `server.crt` and `server.key` into `/etc/openvpn/server/`, replacing the files OVPN+ uses (`server-tcp.conf`/`server-udp.conf`). OVPN+ keeps working only because its processes (running since 2026-11-02) hold the old keys in memory. **Do not restart OVPN+ or reboot .134** until this is fixed.
+
+- Fixed in the job (commit 217b1a9): it now writes `panel-ca.crt`, `panel-server.crt`, `panel-server.key`, `panel-ta.key`.
+- Not done yet, the user said "not now": on .134 copy the panel's current files to the `panel-*` names, point `server.conf` at them, put OVPN+'s originals back from `/etc/openvpn/pki/` (`ca.crt`, `issued/server.crt`, `private/server.key`; byte-identical to `/root/ovpnplus-backup-20261102-094715.tgz`), and restart only `openvpn-server@server`. A redeploy from the panel would also write the `panel-*` files, but would not restore OVPN+'s files.
+- Snapshot taken mid-deploy: `/root/ovpnplus-openvpn-backup-*` on .134.
+
 ## How it works
 
 1. **Login:** the app sends `POST /api/client/v4/session/new` (email + password; IVPN-compatible JSON). The panel returns a session token plus a per-device VPN username/password (`vpn_sessions` table). The device limit comes from settings `active_device_limit`.
