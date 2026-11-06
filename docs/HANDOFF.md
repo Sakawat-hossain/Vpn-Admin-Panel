@@ -1,6 +1,6 @@
 # OvpnPlus: project handoff
 
-Read this first in a new session. Last updated 2026-11-07.
+Read this first in a new session. Last updated 2026-11-07 (second session).
 
 **User:** writes Banglish (romanized Bengali). Reply in Banglish, keep tech terms in
 English. Business: a VPN service whose users are mostly in **China**. The old app
@@ -27,6 +27,13 @@ English. Business: a VPN service whose users are mostly in **China**. The old ap
 | 141.11.76.19 | **Panel** (Debian, nginx, php-fpm) | code in `/opt/vpn-panel` (git checkout of the branch); `APP_URL=http://141.11.76.19` (no HTTPS yet); queue worker + cron must run |
 | 163.227.238.134 | **VPN server** (panel server #4, "Panel-managed OpenVPN", Brahmanbaria) | `openvpn-server@server`, udp/1194, NAT `10.89.0.0/16`. Old "vpnpanel" and "Nexora" panels were removed. Server #3 is a duplicate "OpenVPN profile" entry for the same IP; delete it |
 | 43.135.12.23 | new Tencent Cloud VPS (Debian 13, root) | purpose not decided yet (panel? VPN? Claude Code on the VPS?) |
+
+Server check on 2026-11-07 (second session):
+- 141.11.76.19 did not answer on ports 22 or 80, from the user's PC or from 163.227.238.134. Check it in the provider console.
+- 163.227.238.134 now runs the user's **OVPN+** product (`ovpnplus-web`, `openvpn-server@server-tcp` on tcp/443 and `@server-udp` on udp/1398, tls-crypt-v2). There is no `openvpn-server@server` and no `/etc/openvpn/server/server.conf` from this panel. Do not redeploy server #4 there until the user decides which product that box is for.
+- `/root/.ssh/authorized_keys` there holds three keys: `nexora-bd-134`, `ovpnplus-vps-access`, `ovpnplus-test-vps`.
+
+Local checkout used by Claude sessions: `D:\My GitHub\OvpnPlus\Admin Panel` (panel) and `D:\My GitHub\OvpnPlus\desktop-app`.
 
 The user's Windows PC: repo at `C:\Users\sakaw\desktop-app`. Go, Node 24, NSIS, CMake,
 VS 2022 Build Tools and MSYS2 gcc are installed. The user often types in **CMD** while
@@ -82,7 +89,7 @@ $env:ELECTRON_BUILDER_BINARIES_MIRROR = "https://npmmirror.com/mirrors/electron-
    - Rebuild and reinstall the app; uninstall the old "LepidVPN" build first.
    - Connect and keep the tunnel up for 2 minutes or more.
 2. If China still drops the tunnel: try TCP 443 (`OPENVPN_PROTO=tcp`, `OPENVPN_PORT=443`) or obfs4. The IVPN daemon already supports obfsproxy; the server side is not built yet.
-3. UI design: still IVPN's blue UI. Restyle with OvpnPlus colors (black/white, orange/gold). Hide IVPN-only features (WireGuard, Multi-Hop, AntiTracker, IVPN links).
+3. UI design: **done in source** (2026-11-07). Gold `#FFB000` accent from the logo on a black/white base, light and dark mode. WireGuard, Multi-Hop and AntiTracker are hidden and forced off through `config.Features` in `ui/src/config.js`. Not yet seen in a real installed build.
 4. Panel on a domain with HTTPS. Then rebuild the app with `-PanelHost domain` and redeploy the servers (the auth URL changes). aaPanel/CyberPanel are fine; they need `proc_open` enabled, sshpass, a Supervisor queue worker and cron.
 5. Not done yet:
    - code signing
