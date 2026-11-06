@@ -26,7 +26,7 @@ English. Business: a VPN service whose users are mostly in **China**. The old ap
 |---|---|---|
 | 141.11.76.19 | **Panel** (Debian, nginx, php-fpm) | code in `/opt/vpn-panel` (git checkout of the branch); `APP_URL=http://141.11.76.19` (no HTTPS yet); queue worker + cron must run |
 | 163.227.238.134 | **VPN server** (panel server #4, "Panel-managed OpenVPN", Brahmanbaria) | `openvpn-server@server`, udp/1194, NAT `10.89.0.0/16`. Old "vpnpanel" and "Nexora" panels were removed. Server #3 is a duplicate "OpenVPN profile" entry for the same IP; delete it |
-| 43.135.12.23 | new Tencent Cloud VPS (Debian 13, root) | purpose not decided yet (panel? VPN? Claude Code on the VPS?) |
+| 43.135.12.23 | **new OvpnPlus VPN server** (Tencent Cloud, Hong Kong, Debian 13, 2 CPU / 2 GB) | user's choice 2026-11-07. Fresh: only sshd. Private IP 10.5.0.16 behind Tencent NAT, so open ports in the Tencent security group. Claude's key: `~/.ssh/ovpnplus_app_ed25519` (root). Root password login is off (`prohibit-password`); bots were brute-forcing it |
 
 Server check on 2026-11-07 (second session):
 - 141.11.76.19 did not answer on ports 22 or 80, from the user's PC or from 163.227.238.134. Check it in the provider console.
