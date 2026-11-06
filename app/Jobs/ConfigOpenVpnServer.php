@@ -202,6 +202,10 @@ duplicate-cn
 auth-user-pass-verify /etc/openvpn/server/panel-auth.sh via-file
 script-security 2
 keepalive 10 60
+# The desktop app (IVPN client) uses "compress" stub framing; without it the
+# server reads every packet as "unknown IP version=15" and traffic never flows.
+compress
+push "compress"
 reneg-sec 3600
 persist-key
 persist-tun
