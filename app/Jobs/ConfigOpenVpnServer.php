@@ -114,7 +114,7 @@ class ConfigOpenVpnServer implements ShouldQueue, ShouldBeEncrypted
         $key = trim($certificate['key']);
         $ta = trim($pki->tlsAuthKey());
         $udpOnly = $proto === 'udp' ? 'explicit-exit-notify 1' : '';
-        $tlsLine = OpenVpnProfile::tlsMode() === 'tls-auth' ? 'tls-auth ta.key 0' : 'tls-crypt ta.key';
+        $tlsLine = OpenVpnProfile::tlsMode() === 'tls-auth' ? 'tls-auth panel-ta.key 0' : 'tls-crypt panel-ta.key';
 
         return <<<BASH
 #!/bin/bash
@@ -143,22 +143,24 @@ if [ ! -c /dev/net/tun ]; then
 fi
 
 echo "[2/7] writing certificates and keys..."
+# Our files carry a "panel-" prefix so they never replace the ca.crt/server.crt/
+# server.key of another OpenVPN setup on the same VPS.
 D=/etc/openvpn/server
 mkdir -p "\$D"
 chmod 755 /etc/openvpn "\$D"
-cat > "\$D/ca.crt" <<'PANEL_EOF'
+cat > "\$D/panel-ca.crt" <<'PANEL_EOF'
 $ca
 PANEL_EOF
-cat > "\$D/server.crt" <<'PANEL_EOF'
+cat > "\$D/panel-server.crt" <<'PANEL_EOF'
 $cert
 PANEL_EOF
-cat > "\$D/server.key" <<'PANEL_EOF'
+cat > "\$D/panel-server.key" <<'PANEL_EOF'
 $key
 PANEL_EOF
-cat > "\$D/ta.key" <<'PANEL_EOF'
+cat > "\$D/panel-ta.key" <<'PANEL_EOF'
 $ta
 PANEL_EOF
-chmod 600 "\$D/server.key" "\$D/ta.key"
+chmod 600 "\$D/panel-server.key" "\$D/panel-ta.key"
 
 echo "[3/7] writing the panel login check..."
 cat > "\$D/panel-auth.sh" <<PANEL_EOF
@@ -187,9 +189,9 @@ proto \$PROTO
 dev tun
 topology subnet
 server \$NETWORK \$NETMASK
-ca ca.crt
-cert server.crt
-key server.key
+ca panel-ca.crt
+cert panel-server.crt
+key panel-server.key
 dh none
 $tlsLine
 cipher AES-256-CBC

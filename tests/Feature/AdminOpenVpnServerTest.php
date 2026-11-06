@@ -137,8 +137,12 @@ class AdminOpenVpnServerTest extends TestCase
         $this->assertStringContainsString('auth-user-pass-verify /etc/openvpn/server/panel-auth.sh via-file', $script);
         $this->assertStringNotContainsString('explicit-exit-notify', $script);
         $this->assertStringContainsString('is already used by another program', $script);
-        $this->assertStringContainsString("\ntls-crypt ta.key\n", $script);
-        $this->assertStringNotContainsString('tls-auth ta.key', $script);
+        $this->assertStringContainsString("\ntls-crypt panel-ta.key\n", $script);
+        $this->assertStringNotContainsString('tls-auth', $script);
+        // never overwrite another OpenVPN setup's files on the same VPS
+        $this->assertStringContainsString('cat > "$D/panel-ca.crt"', $script);
+        $this->assertStringNotContainsString('cat > "$D/ca.crt"', $script);
+        $this->assertStringNotContainsString('cat > "$D/server.key"', $script);
 
         $file = tempnam(sys_get_temp_dir(), 'ovpn-script');
         file_put_contents($file, $script);
