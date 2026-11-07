@@ -166,6 +166,32 @@ class ClientApiTest extends ApiTestCase
         $this->assertStringNotContainsString('server-secret', $response->getContent());
     }
 
+    public function test_server_list_groups_servers_of_one_city_into_one_location()
+    {
+        $premium = $this->managedServer(['is_premium' => 1, 'country' => 'Bangladesh', 'state' => 'Dhaka District']);
+        $free = $this->managedServer(['is_premium' => 0, 'country' => 'Bangladesh', 'state' => 'Dhaka District']);
+        $tokyo = $this->managedServer(['is_premium' => 0]);
+
+        $response = $this->withHeaders(['x-api-key' => self::API_KEY])->getJson('/api/client/v5/servers.json')->assertOk();
+        $response->assertJsonCount(2, 'openvpn');
+
+        $locations = collect($response->json('openvpn'))->keyBy('city');
+        $dhaka = $locations['Dhaka District'];
+        $this->assertSame('server-' . $premium->id, $dhaka['gateway']);
+        $this->assertSame('BD', $dhaka['country_code']);
+        $this->assertFalse($dhaka['is_premium'], 'a location with a free host is not premium');
+        $this->assertCount(2, $dhaka['hosts']);
+        $this->assertSame(['Dhaka District #1', 'Dhaka District #2'], array_column($dhaka['hosts'], 'name'));
+        $this->assertSame([true, false], array_column($dhaka['hosts'], 'is_premium'));
+        $this->assertSame(['server-' . $premium->id . '.gw', 'server-' . $free->id . '.gw'], array_column($dhaka['hosts'], 'hostname'));
+        $this->assertSame([$premium->ip_address, $free->ip_address], array_column($dhaka['hosts'], 'host'));
+
+        $single = $locations['Tokyo'];
+        $this->assertSame('server-' . $tokyo->id, $single['gateway']);
+        $this->assertSame('Tokyo', $single['hosts'][0]['name']);
+        $this->assertFalse($single['is_premium']);
+    }
+
     public function test_openvpn_auth_checks_the_server_secret()
     {
         $server = $this->managedServer();

@@ -28,28 +28,41 @@ class ServerListController extends Controller
 
         return response()->json([
             'wireguard' => [],
-            'openvpn' => $servers->map(fn(Server $server) => [
-                'gateway' => 'server-' . $server->id,
-                'country_code' => strtoupper((string) countryIsoCode($server->country)),
-                'country' => $server->country,
-                'city' => $server->state,
-                'latitude' => (float) $server->latitude,
-                'longitude' => (float) $server->longitude,
-                'isp' => '',
-                'is_premium' => $server->isPremium(),
-                'recommended' => (bool) $server->recommended,
-                'hosts' => [[
-                    // the apps use the part before the first dot as the host id
-                    'hostname' => 'server-' . $server->id . '.gw',
-                    'host' => $server->ip_address,
-                    'dns_name' => '',
-                    'multihop_port' => 0,
-                    'load' => 0,
-                    'v2ray' => '',
-                    'isp' => '',
-                    'obfs' => (object) [],
-                ]],
-            ])->values(),
+            // Servers in the same country and city become one location with several hosts
+            // ("Dhaka District #1", "#2", ...). The location keeps the gateway of its first
+            // server, so a location with a single server looks exactly as before.
+            'openvpn' => $servers
+                ->groupBy(fn(Server $server) => strtoupper((string) countryIsoCode($server->country)) . '|' . mb_strtolower(trim((string) $server->state)))
+                ->map(function ($group) {
+                    $first = $group->first();
+                    $multi = $group->count() > 1;
+                    $hosts = $group->values()->map(fn(Server $server, $i) => [
+                        // the apps use the part before the first dot as the host id
+                        'hostname' => 'server-' . $server->id . '.gw',
+                        'host' => $server->ip_address,
+                        'name' => $multi ? trim($server->state . ' #' . ($i + 1)) : (string) $server->state,
+                        'is_premium' => (bool) $server->isPremium(),
+                        'dns_name' => '',
+                        'multihop_port' => 0,
+                        'load' => 0,
+                        'v2ray' => '',
+                        'isp' => '',
+                        'obfs' => (object) [],
+                    ]);
+                    return [
+                        'gateway' => 'server-' . $first->id,
+                        'country_code' => strtoupper((string) countryIsoCode($first->country)),
+                        'country' => $first->country,
+                        'city' => $first->state,
+                        'latitude' => (float) $first->latitude,
+                        'longitude' => (float) $first->longitude,
+                        'isp' => '',
+                        // the location is Premium only when every host is
+                        'is_premium' => $hosts->every(fn($h) => $h['is_premium']),
+                        'recommended' => (bool) $group->contains(fn(Server $server) => (bool) $server->recommended),
+                        'hosts' => $hosts->all(),
+                    ];
+                })->values(),
             'config' => [
                 'antitracker' => ['default' => ['ip' => ''], 'hardcore' => ['ip' => '']],
                 'antitracker_plus' => ['DnsServers' => []],
