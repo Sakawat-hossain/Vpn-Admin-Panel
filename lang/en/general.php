@@ -2,6 +2,7 @@
 
 return array (
   'all_rights_reserved' => 'All rights reserved',
+  'powered_by' => 'Powered by',
   'gdpr_cookie_note' => 'We use cookies to personalize your experience. By continuing to visit this website you agree to our use of cookies',
   'got_it' => 'Got it',
   'more' => 'More',

@@ -2,7 +2,7 @@
 	{
 		"id" : 1,
 		"key" : "general",
-		"value" : {"site_name":"billiongroup","site_url":"http:\/\/wg-backend.test","contact_email":"support@billiongroup.net","terms_of_service_link":null,"date_format":"10","timezone":"America\/New_York","premium_users":"7.1k+","joined_users":"50k+","highly_rated_products":"4.8\/5","money_free":"100%","active_device_limit":"2"}
+		"value" : {"site_name":"OVPNPlus","site_url":"https:\/\/app.ovpnplus.com","contact_email":"support@billiongroup.net","terms_of_service_link":null,"date_format":"10","timezone":"America\/New_York","premium_users":"7.1k+","joined_users":"50k+","highly_rated_products":"4.8\/5","money_free":"100%","active_device_limit":"2"}
 	},
 	{
 		"id" : 2,
@@ -17,7 +17,7 @@
 	{
 		"id" : 4,
 		"key" : "smtp",
-		"value" : {"status":1,"mailer":"smtp","host":"mail.privateemail.com","port":"587","username":"your-smtp-username-here","password":"your-smtp-password-here","encryption":"tls","from_email":"support@billiongroup.net","from_name":"billiongroup"}
+		"value" : {"status":1,"mailer":"smtp","host":"mail.privateemail.com","port":"587","username":"your-smtp-username-here","password":"your-smtp-password-here","encryption":"tls","from_email":"support@billiongroup.net","from_name":"OVPNPlus"}
 	},
 	{
 		"id" : 5,

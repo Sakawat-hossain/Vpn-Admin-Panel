@@ -52,8 +52,8 @@
               document.write(new Date().getFullYear());
             </script>
           </span>
-          <a href="javascript:void(0)" target="_blank" class="fw-medium text-white footer-link">{{ $settings->general->site_name }},</a>
-          <span class="footer-text"> {{ lang('All rights reserved') }}.</span>
+          <a href="{{ url('/') }}" class="fw-medium text-white footer-link">{{ $settings->general->site_name }}</a>
+          <span class="footer-text"> &middot; {{ lang('Powered by') }} OVPN<sup>+</sup></span>
         </div>
         <div>
           <a href="javascript:void(0)" class="footer-link me-3" target="_blank">

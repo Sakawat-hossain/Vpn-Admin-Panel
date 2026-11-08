@@ -1,7 +1,7 @@
 @extends('backend.layouts.auth')
 @section('title', admin_lang('Login'))
 @section('content')
-<h3 class="mb-1">Welcome to WG-Backend 👋</h3>
+<h3 class="mb-1">Welcome to OVPN<sup>+</sup></h3>
 <p class="mb-4">Please sign-in to your account and start the adventure</p>
 <form id="formAuthentication" class="mb-3" action="{{ route('admin.login.store') }}" method="POST">
   @csrf

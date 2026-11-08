@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Production deploy / update script for the SoLion VPN admin panel.
+# Production deploy / update script for the OVPN+ admin panel.
 # Run on the VPS from the project root, e.g.:  bash deploy.sh
 #
 # It pulls the latest code from GitHub and rebuilds everything the repo

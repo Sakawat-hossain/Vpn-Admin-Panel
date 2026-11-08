@@ -1,7 +1,7 @@
 {
   "general": {
-    "site_name": "billiongroup",
-    "site_url": "https://server.billiongroup.net",
+    "site_name": "OVPNPlus",
+    "site_url": "https://app.ovpnplus.com",
     "contact_email": "support@billiongroup.net",
     "terms_of_service_link": null,
     "date_format": "10",
@@ -32,7 +32,7 @@
     "password": "your-smtp-password-here",
     "encryption": "tls",
     "from_email": "support@billiongroup.net",
-    "from_name": "billiongroup"
+    "from_name": "OVPNPlus"
   },
   "actions": {
     "email_verification_status": 1,
