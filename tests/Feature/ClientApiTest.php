@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Server;
 use App\Models\Settings;
+use App\Models\Subscription;
 use App\Models\User;
+use App\Models\UserLog;
 use App\Models\VpnSession;
 use App\Services\OpenVpnPki;
 use Illuminate\Support\Facades\File;
@@ -149,6 +151,54 @@ class ClientApiTest extends ApiTestCase
         $this->postJson('/api/client/v4/session/status', ['session_token' => $token])->assertJson(['status' => 601]);
     }
 
+    public function test_device_name_comes_from_the_app_or_falls_back_to_desktop_app()
+    {
+        $user = $this->makeUser();
+
+        $this->withHeaders(['User-Agent' => 'Go-http-client/1.1'])
+            ->postJson('/api/client/v4/session/new', ['username' => $user->email, 'password' => 'password'])
+            ->assertJson(['status' => 200, 'device_name' => 'Desktop app']);
+        $this->flushHeaders()->withHeaders(['User-Agent' => 'Go-http-client/2.0'])
+            ->postJson('/api/client/v4/session/new', ['username' => $user->email, 'password' => 'password'])
+            ->assertJson(['status' => 200, 'device_name' => 'Desktop app']);
+        // The name the app sends wins over the User-Agent.
+        $this->flushHeaders()->withHeaders(['User-Agent' => 'Go-http-client/1.1'])
+            ->postJson('/api/client/v4/session/new', ['username' => $user->email, 'password' => 'password', 'device_name' => 'DESKTOP-1AB2C (Windows)'])
+            ->assertJson(['status' => 200, 'device_name' => 'DESKTOP-1AB2C (Windows)']);
+        // Other clients keep their User-Agent.
+        $this->flushHeaders()->withHeaders(['User-Agent' => 'SomeClient/3.0'])
+            ->postJson('/api/client/v4/session/new', ['username' => $user->email, 'password' => 'password'])
+            ->assertJson(['status' => 200, 'device_name' => 'SomeClient/3.0']);
+
+        $this->assertSame(
+            ['Desktop app', 'Desktop app', 'DESKTOP-1AB2C (Windows)', 'SomeClient/3.0'],
+            VpnSession::orderBy('id')->pluck('device_name')->all()
+        );
+    }
+
+    public function test_app_login_is_written_to_the_login_history()
+    {
+        $user = $this->makeUser();
+
+        $this->login($user, ['device_name' => 'DESKTOP-1AB2C (Windows)'])->assertJson(['status' => 200]);
+
+        $log = UserLog::where('user_id', $user->id)->sole();
+        $this->assertSame('127.0.0.1', $log->ip);
+        $this->assertSame('VPN app', $log->browser);
+        $this->assertSame('Windows', $log->os);
+        $this->assertSame('Japan', $log->country);
+
+        // A second sign-in from the same IP updates that row, like the website login.
+        $this->login($user, ['device_name' => 'MacBook (macOS)'])->assertJson(['status' => 200]);
+        $this->assertSame(1, UserLog::where('user_id', $user->id)->count());
+        $this->assertSame('macOS', UserLog::where('user_id', $user->id)->sole()->os);
+
+        // Failed logins are not logged.
+        $other = $this->makeUser();
+        $this->login($other, ['password' => 'wrong'])->assertJson(['status' => 401]);
+        $this->assertSame(0, UserLog::where('user_id', $other->id)->count());
+    }
+
     public function test_server_list_needs_app_key_and_lists_managed_openvpn_servers_only()
     {
         $managed = $this->managedServer(['is_premium' => 1]);
@@ -259,6 +309,50 @@ class ClientApiTest extends ApiTestCase
 
         $server->update(['status' => 0]);
         $this->auth($server, $premium->email, 'password')->assertStatus(403);
+    }
+
+    public function test_openvpn_auth_requires_the_same_active_subscription_as_the_app()
+    {
+        $server = $this->managedServer(); // a free server
+        $free = $this->makeUser();
+        $cancelled = $this->makeUser();
+        $cancelled->subscription->update(['status' => 0]);
+        $expired = $this->makeUser([], true);
+        $expired->subscription->update(['expiry_at' => now()->subDay()]);
+
+        $this->auth($server, $free->email, 'password')->assertNoContent();
+        foreach ([$cancelled, $expired] as $user) {
+            $this->auth($server, $user->email, 'password')->assertStatus(403);
+            // ...and the app shows the same account as inactive.
+            $token = $this->login($user)->assertJson(['status' => 200])->json('token');
+            $this->postJson('/api/client/v4/session/status', ['session_token' => $token])
+                ->assertJson(['status' => 200, 'service_status' => ['is_active' => false]]);
+        }
+
+        // A free plan is active whatever its expiry date says.
+        $free->subscription->update(['expiry_at' => now()->subDay()]);
+        $this->auth($server, $free->email, 'password')->assertNoContent();
+    }
+
+    public function test_a_user_without_any_subscription_row_gets_the_free_plan_instead_of_a_lockout()
+    {
+        $server = $this->managedServer();
+
+        // OpenVPN login check
+        $viaVpn = User::factory()->create();
+        $this->auth($server, $viaVpn->email, 'password')->assertNoContent();
+        $this->assertSame($this->freePlan->id, (int) $viaVpn->subscription()->sole()->plan_id);
+
+        // App sign-in
+        $viaApp = User::factory()->create();
+        $token = $this->login($viaApp)->assertJson(['status' => 200, 'service_status' => ['is_active' => true, 'current_plan' => 'Free']])->json('token');
+        $this->assertSame(1, Subscription::where('user_id', $viaApp->id)->count());
+
+        // Session status of a device whose user lost the row later
+        Subscription::where('user_id', $viaApp->id)->delete();
+        $this->postJson('/api/client/v4/session/status', ['session_token' => $token])
+            ->assertJson(['status' => 200, 'service_status' => ['is_active' => true, 'current_plan' => 'Free']]);
+        $this->assertSame(1, Subscription::where('user_id', $viaApp->id)->count());
     }
 
     public function test_openvpn_auth_ignores_servers_that_are_not_panel_managed()

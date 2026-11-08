@@ -31,16 +31,9 @@ class PlanController extends Controller
 
     public function store(Request $request)
     {
-        if (!$request->has('is_free')) {
-            $activePaymentMethod = PaymentGateway::where('status', 1)->hasCurrency()->get();
-            if (count($activePaymentMethod) < 1) {
-                toastr()->error(admin_lang('No active payment method'))->info(admin_lang('Add your payment methods info before you start creating a plan'));
-                return back()->withInput();
-            }
-        }
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'product_id' => ['required', 'string', 'max:150'],
+            'product_id' => ['nullable', 'string', 'max:150'],
             'interval' => ['required', 'integer', 'min:1', 'max:4'], // Adjusted max to 4
             'price' => ['sometimes', 'required', 'numeric', 'regex:/^\d*(\.\d{2})?$/'],
         ]);
@@ -73,11 +66,10 @@ class PlanController extends Controller
             $request->login_require = 1;
         }
         $request->is_featured = ($request->has('is_featured')) ? 1 : 0;
-        $request->expiration = ($request->has('no_expiration')) ? null : $request->expiration;
         $request->advertisements = ($request->has('advertisements')) ? 1 : 0;
         $plan = Plan::create([
             'name' => $request->name,
-            'product_id' => $request->product_id,
+            'product_id' => $this->productIds($request),
             'interval' => $request->interval,
             'price' => $request->price,
             'advertisements' => $request->advertisements,
@@ -91,6 +83,10 @@ class PlanController extends Controller
                 Plan::where([['id', '!=', $plan->id], ['interval', $plan->interval]])->update(['is_featured' => 0]);
             }
             toastr()->success(admin_lang('Created Successfully'));
+            if (!$plan->isFree() && !$this->hasWebGateway()) {
+                // The plan is saved: the owner may add a gateway for the currency later.
+                toastr()->warning(admin_lang('No active payment gateway supports the site currency yet, so this plan cannot be bought on the website until you add one.'));
+            }
             return redirect()->route('admin.plans.index');
         }
     }
@@ -109,7 +105,7 @@ class PlanController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'product_id' => ['required', 'string', 'max:150'],
+            'product_id' => ['nullable', 'string', 'max:150'],
             'interval' => ['required', 'integer', 'min:1', 'max:4'], // Adjusted max to 4
             'price' => ['sometimes', 'required', 'numeric', 'regex:/^\d*(\.\d{2})?$/'],
         ]);
@@ -142,12 +138,11 @@ class PlanController extends Controller
             $request->login_require = 1;
         }
         $request->is_featured = ($request->has('is_featured')) ? 1 : 0;
-        $request->expiration = ($request->has('no_expiration')) ? null : $request->expiration;
         $request->advertisements = ($request->has('advertisements')) ? 1 : 0;
 
         $update = $plan->update([
             'name' => $request->name,
-            'product_id' => $request->product_id,
+            'product_id' => $this->productIds($request),
             'interval' => $request->interval,
             'price' => $request->price,
             'advertisements' => $request->advertisements,
@@ -163,6 +158,24 @@ class PlanController extends Controller
             toastr()->success(admin_lang('Updated Successfully'));
             return back();
         }
+    }
+
+    /**
+     * The store product id(s) of the mobile apps, or null when left empty.
+     */
+    private function productIds(Request $request): ?string
+    {
+        $productIds = trim((string) $request->input('product_id'));
+        return $productIds === '' ? null : $productIds;
+    }
+
+    /**
+     * Whether a website checkout can take payments in the site currency.
+     * The App Store / Google Play rows do not count.
+     */
+    private function hasWebGateway(): bool
+    {
+        return PaymentGateway::where('status', 1)->forWebCheckout()->hasCurrency()->exists();
     }
 
     public function destroy(Plan $plan)

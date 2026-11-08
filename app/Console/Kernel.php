@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('subscriptions:update-expired')->everyMinute()->withoutOverlapping();
         $schedule->command('wg:prune')->dailyAt('03:17')->withoutOverlapping();
+        $schedule->command('subscriptions:send-reminders')->dailyAt('10:05')->withoutOverlapping();
     }
 
     /**

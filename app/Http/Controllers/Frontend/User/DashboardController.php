@@ -14,7 +14,8 @@ class DashboardController extends Controller
         $user = userAuthInfo();
         $user->load('subscription.plan', 'servers');
 
-        $servers = Server::where('status', 1)
+        // The servers the apps list, so the counts match what users see in the app.
+        $servers = Server::listedInApps()
             ->orderByDesc('recommended')
             ->orderBy('country')
             ->get();

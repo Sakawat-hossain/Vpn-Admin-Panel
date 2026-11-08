@@ -14,6 +14,18 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected static function booted()
+    {
+        // A new password (changed in the settings, reset by mail or by an
+        // admin) signs the client apps out: their sessions carry their own
+        // VPN password and would keep working otherwise.
+        static::updated(function (User $user) {
+            if ($user->wasChanged('password')) {
+                $user->vpnSessions()->delete();
+            }
+        });
+    }
+
     public function isSubscribed()
     {
         return $this->subscription;
@@ -97,6 +109,30 @@ class User extends Authenticatable implements MustVerifyEmail
             return false;
         }
         return !$subscription->plan->isFree() && $subscription->isActive();
+    }
+
+    /**
+     * Give a user without any subscription row the free plan, so a missing
+     * row (old admin deletes, broken sign-ups) never locks anyone out.
+     */
+    public function ensureSubscription(): void
+    {
+        if (!$this->subscription) {
+            Subscription::startFree($this);
+            $this->load('subscription');
+        }
+    }
+
+    /**
+     * Whether the user's account may use the VPN at all: a subscription that
+     * is not cancelled, on the free plan or unexpired. The apps show this as
+     * "is_active" and the OpenVPN login check requires it.
+     */
+    public function hasActiveService(): bool
+    {
+        $subscription = $this->subscription;
+        $plan = $subscription?->plan;
+        return $subscription && $plan && !$subscription->isCancelled() && ($plan->isFree() || $subscription->isActive());
     }
 
     /**

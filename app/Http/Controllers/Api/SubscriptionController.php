@@ -33,6 +33,10 @@ class SubscriptionController extends Controller
     public function plans()
     {
         $plans = Plan::orderBy('is_free', 'desc')->orderBy('price')->get();
+        // product_id is optional now (web-only plans); the mobile app expects a string.
+        $plans->each(function (Plan $plan) {
+            $plan->product_id = $plan->product_id ?? '';
+        });
         return response200($plans, __('Successfully retrieved plans'));
     }
 

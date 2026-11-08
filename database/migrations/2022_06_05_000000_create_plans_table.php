@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('plans', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('name');
-            $table->string('product_id', 150);
+            $table->string('product_id', 150)->nullable(); // made nullable on existing installs by 2026_11_09_000003
             $table->tinyInteger('interval')->comment('1:Monthly 2:Yearly');
             $table->float('price', 10, 2)->default(0);
             $table->integer('expiration')->nullable();

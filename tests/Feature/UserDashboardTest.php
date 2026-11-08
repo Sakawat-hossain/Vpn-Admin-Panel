@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ConfigServerJob;
 use App\Models\Plan;
 use App\Models\Server;
 use App\Models\Settings;
@@ -76,11 +77,24 @@ class UserDashboardTest extends TestCase
         $this->actingAs($this->makeUser())->get('/user')->assertRedirect(route('user.dashboard'));
     }
 
+    /**
+     * A server the apps list: enabled panel-managed OpenVPN whose latest deploy succeeded.
+     */
+    private function appServer(array $attributes = [], string $deploy = 'success'): Server
+    {
+        $server = $this->makeServer(array_merge(['is_ovpn' => 1, 'ovpn_managed' => 1], $attributes));
+        (new ConfigServerJob())->forceFill([
+            'server_id' => $server->id, 'ip' => $server->ip_address, 'ssh_port' => 22,
+            'vps_username' => 'root', 'vps_password' => '', 'status' => $deploy,
+        ])->save();
+        return $server;
+    }
+
     public function test_dashboard_shows_plan_and_servers()
     {
-        $japan = $this->makeServer(['country' => 'Japan', 'is_ovpn' => 1, 'ovpn_config' => "client\nremote jp 1194"]);
-        $germany = $this->makeServer(['country' => 'Germany', 'state' => 'Berlin', 'is_premium' => 1, 'is_ovpn' => 1, 'ovpn_config' => 'client']);
-        $this->makeServer(['country' => 'Singapore', 'state' => 'Singapore', 'status' => 0]);
+        $japan = $this->appServer(['country' => 'Japan']);
+        $germany = $this->appServer(['country' => 'Germany', 'state' => 'Berlin', 'is_premium' => 1]);
+        $this->appServer(['country' => 'Singapore', 'state' => 'Singapore', 'status' => 0]);
         $user = $this->makeUser(true);
 
         $response = $this->actingAs($user)->get('/user/dashboard')->assertOk();
@@ -93,14 +107,34 @@ class UserDashboardTest extends TestCase
             ->assertSee(route('user.servers.openvpn', $japan->id), false)
             ->assertSee(route('user.servers.openvpn', $germany->id), false)
             ->assertSee('2 / 2');
-        // The profile itself is never rendered into the page.
-        $response->assertDontSee('remote jp 1194');
+    }
+
+    public function test_dashboard_lists_only_the_servers_the_app_lists()
+    {
+        $listed = $this->appServer(['country' => 'Japan']);
+        $profile = $this->makeServer(['country' => 'Iceland', 'state' => 'Reykjavik', 'is_ovpn' => 1, 'ovpn_config' => "client\nremote is 1194"]);
+        $wireguard = $this->makeServer(['country' => 'Norway', 'state' => 'Oslo']);
+        $failed = $this->appServer(['country' => 'Portugal', 'state' => 'Lisbon'], 'failed');
+
+        $response = $this->actingAs($this->makeUser())->get('/user/dashboard')->assertOk()
+            ->assertSee(route('user.servers.openvpn', $listed->id), false)
+            ->assertSee('1 / 1');
+        foreach ([$profile, $wireguard, $failed] as $server) {
+            $response->assertDontSee($server->country)
+                ->assertDontSee(route('user.servers.openvpn', $server->id), false);
+        }
+        // A profile is never rendered into the page.
+        $response->assertDontSee('remote is 1194');
+
+        // The same servers as servers.json.
+        $json = $this->withHeaders(['x-api-key' => 'test-fast-api-key'])->getJson('/api/client/v5/servers.json')->assertOk();
+        $this->assertSame(['Japan'], array_column($json->json('openvpn'), 'country'));
     }
 
     public function test_free_user_sees_upgrade_instead_of_premium_download()
     {
-        $free = $this->makeServer(['is_ovpn' => 1, 'ovpn_config' => 'client']);
-        $premium = $this->makeServer(['country' => 'Germany', 'is_premium' => 1, 'is_ovpn' => 1, 'ovpn_config' => 'client']);
+        $free = $this->appServer();
+        $premium = $this->appServer(['country' => 'Germany', 'is_premium' => 1]);
 
         $this->actingAs($this->makeUser())->get('/user/dashboard')->assertOk()
             ->assertSee(route('user.servers.openvpn', $free->id), false)

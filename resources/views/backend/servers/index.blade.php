@@ -7,7 +7,7 @@
             <div class="me-auto">
                 <div class="fw-bold">{{ admin_lang('OpenVPN certificate for the apps') }}</div>
                 <div class="text-secondary small">
-                    {{ admin_lang('Every panel-managed OpenVPN server uses this CA and tls-auth key. Bundle both into the desktop/mobile apps; users still sign in with their own account.') }}
+                    {{ admin_lang('Every panel-managed OpenVPN server uses this CA and static key (tls-crypt by default). The apps download both from the server list (servers.json), so nothing needs to be bundled; users sign in with their own account. Keep a backup of them.') }}
                 </div>
             </div>
             <a href="{{ route('admin.openvpn.pki', 'ca.crt') }}" class="btn"><i class="ti ti-download icon"></i>ca.crt</a>
@@ -255,7 +255,7 @@
                             <input type="text" name="ip_address" class="form-control" required/>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label">{{ admin_lang('Recommended') }} : <span class="text-danger">*</span></label>
+                            <label class="form-label">{{ admin_lang('Recommended (website and old mobile app; not used by the desktop app)') }} : <span class="text-danger">*</span></label>
                             <select name="recommended" id="recommended" class="form-select" required>
                                 <option value="" selected disabled>{{ admin_lang('Choose') }}</option>
                                 @foreach ($recommendOptions as $key => $row)
@@ -283,6 +283,7 @@
                                 <option value="openvpn">{{ admin_lang('OpenVPN, managed by the panel (users sign in with their account)') }}</option>
                                 <option value="openvpn_profile">{{ admin_lang('OpenVPN, pasted profile (one shared profile)') }}</option>
                             </select>
+                            <small class="form-hint">{{ admin_lang('Only panel-managed OpenVPN servers appear in the desktop app.') }}</small>
                         </div>
                         <div class="form-check form-switch mb-2 install-toggle">
                             <input class="form-check-input" type="checkbox" id="install" name="install">

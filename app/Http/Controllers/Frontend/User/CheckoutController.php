@@ -19,7 +19,7 @@ class CheckoutController extends Controller
     public function index($checkout_id)
     {
         $transaction = Transaction::where([['checkout_id', $checkout_id], ['user_id', userAuthInfo()->id]])->unpaid()->firstOrFail();
-        $paymentGateways = PaymentGateway::where([['status', 1], ['min', '<=', $transaction->total]])->hasCurrency()->get();
+        $paymentGateways = PaymentGateway::where([['status', 1], ['min', '<=', $transaction->total]])->forWebCheckout()->hasCurrency()->get();
         return view('frontend.user.checkout', [
             'user' => userAuthInfo(),
             'transaction' => $transaction,
@@ -115,7 +115,7 @@ class CheckoutController extends Controller
             }
         }
         if ($transaction->total != 0) {
-            $paymentGateway = PaymentGateway::where([['id', $request->payment_method]])->hasCurrency()->active()->first();
+            $paymentGateway = PaymentGateway::where([['id', $request->payment_method]])->forWebCheckout()->hasCurrency()->active()->first();
             if (!$paymentGateway || $transaction->total < $paymentGateway->min) {
                 toastr()->error(lang('Selected payment method is not active', 'checkout'));
                 return back();
@@ -162,68 +162,29 @@ class CheckoutController extends Controller
         if ($transaction->status != 2) {
             throw new Exception(lang('Incomplete payment', 'checkout'));
         }
+        $plan = $transaction->plan;
         if ($transaction->type == 1) {
-            if ($transaction->plan->interval == 1) { // Monthly subscription
-                $expiry_at = Carbon::now()->addMonth();
-            } elseif ($transaction->plan->interval == 2) { // Yearly subscription
-                $expiry_at = Carbon::now()->addYear();
-            } elseif ($transaction->plan->interval == 3) { // Weekly subscription
-                $expiry_at = Carbon::now()->addWeek();
-            } elseif ($transaction->plan->interval == 4) { // Half-Yearly subscription
-                $expiry_at = Carbon::now()->addMonths(6);
-            }
             $subscription = new Subscription();
             $subscription->user_id = $transaction->user_id;
             $subscription->plan_id = $transaction->plan_id;
-            $subscription->expiry_at = $expiry_at;
+            $subscription->expiry_at = $plan->expiryFrom();
             $subscription->save();
         }
-        if ($transaction->type == 2) {
+        if ($transaction->type == 2) { // Renewal: extends the current paid period unless it has expired
             $subscription = $transaction->user->subscription;
-            if ($transaction->plan->interval == 1) { // Monthly subscription
-                if ($subscription->isExpired()) {
-                    $expiry_at = Carbon::now()->addMonth();
-                } else {
-                    $expiry_at = Carbon::parse($subscription->expiry_at)->addMonth();
-                }
-            } elseif ($transaction->plan->interval == 2) { // Yearly subscription
-                if ($subscription->isExpired()) {
-                    $expiry_at = Carbon::now()->addYear();
-                } else {
-                    $expiry_at = Carbon::parse($subscription->expiry_at)->addYear();
-                }
-            } elseif ($transaction->plan->interval == 3) { // Weekly subscription
-                if ($subscription->isExpired()) {
-                    $expiry_at = Carbon::now()->addWeek();
-                } else {
-                    $expiry_at = Carbon::parse($subscription->expiry_at)->addWeek();
-                }
-            } elseif ($transaction->plan->interval == 4) { // Half-Yearly subscription
-                if ($subscription->isExpired()) {
-                    $expiry_at = Carbon::now()->addMonths(6);
-                } else {
-                    $expiry_at = Carbon::parse($subscription->expiry_at)->addMonths(6);
-                }
-            }
-
-            $subscription->expiry_at = $expiry_at;
+            // Paid after the user was already moved to the free plan (expired
+            // meanwhile): start a new period of the renewed plan from now.
+            $startsNow = !$subscription->plan || $subscription->plan->isFree() || $subscription->isExpired();
+            $subscription->plan_id = $transaction->plan_id;
+            $subscription->expiry_at = $plan->expiryFrom($startsNow ? null : Carbon::parse($subscription->expiry_at));
             $subscription->about_to_expire_reminder = false;
             $subscription->expired_reminder = false;
             $subscription->update();
         }
-        if ($transaction->type == 3 || $transaction->type == 4) {
+        if ($transaction->type == 3 || $transaction->type == 4) { // Upgrade / downgrade
             $subscription = $transaction->user->subscription;
-            if ($transaction->plan->interval == 1) { // Monthly subscription
-                $expiry_at = Carbon::now()->addMonth();
-            } elseif ($transaction->plan->interval == 2) { // Yearly subscription
-                $expiry_at = Carbon::now()->addYear();
-            } elseif ($transaction->plan->interval == 3) { // Weekly subscription
-                $expiry_at = Carbon::now()->addWeek();
-            } elseif ($transaction->plan->interval == 4) { // Half-Yearly subscription
-                $expiry_at = Carbon::now()->addMonths(6);
-            }
             $subscription->plan_id = $transaction->plan_id;
-            $subscription->expiry_at = $expiry_at;
+            $subscription->expiry_at = $plan->expiryFrom();
             $subscription->about_to_expire_reminder = false;
             $subscription->expired_reminder = false;
             $subscription->update();

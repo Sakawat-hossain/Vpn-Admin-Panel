@@ -161,7 +161,7 @@ class LoginController extends Controller
                         Auth::login($user);
                         return redirect()->route('user.settings.index');
                     } else {
-                        if (!settings('actions')->email_verification_status) {
+                        if (!settings('actions')->registration_status) {
                             toastr()->error(lang('Registration is currently disabled.', 'auth'));
                             return redirect()->route('login');
                         }

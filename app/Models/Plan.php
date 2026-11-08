@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -45,6 +46,25 @@ class Plan extends Model
     public function isFeatured()
     {
         return $this->is_featured;
+    }
+
+    /**
+     * When a subscription to this plan that starts (or is extended) at $from
+     * ends: one billing interval later. Defaults to now.
+     */
+    public function expiryFrom(?\DateTimeInterface $from = null): Carbon
+    {
+        $from = $from ? Carbon::instance($from) : Carbon::now();
+        switch ((int) $this->interval) {
+            case 2: // Yearly
+                return $from->addYear();
+            case 3: // Weekly
+                return $from->addWeek();
+            case 4: // Half-yearly
+                return $from->addMonths(6);
+            default: // 1: Monthly
+                return $from->addMonth();
+        }
     }
 
     /**

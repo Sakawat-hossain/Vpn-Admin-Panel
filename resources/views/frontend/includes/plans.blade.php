@@ -21,7 +21,6 @@
                   <div class="plan {{ $plan->isFeatured() ? 'pro' : '' }}">
                     <div class="plan-header">
                       <h3 class="{{ $plan->isFeatured() ? 'text-white' : '' }}">{{ $plan->name }}</h3>
-                      <p>{{ $plan->product_id }}</p>
                     </div>
                     <div class="plan-body">
                       <hr/>

@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\Cache;
  * client API (v5/servers.json, v4/geo-lookup).
  *
  * Only panel-managed OpenVPN servers are listed: the apps get the panel CA
- * and tls-auth key from "config.openvpn" and log in with their session's VPN
+ * and static key (tls-crypt by default, see "tls_mode") from
+ * "config.openvpn" and log in with their session's VPN
  * credentials. Free/premium is enforced
  * when the server checks the login; "is_premium" is extra data for the UI.
  */
@@ -21,13 +22,8 @@ class ServerListController extends Controller
 {
     public function servers(OpenVpnPki $pki)
     {
-        // Only servers whose latest deployment succeeded: a server whose deploy failed (wrong
-        // password, changed host key, port in use) has no working OpenVPN, and the apps would
-        // keep trying it.
-        $servers = Server::where('status', 1)->where('is_ovpn', 1)->where('ovpn_managed', 1)
-            ->where(fn($q) => $q->selectRaw('status')->from('config_server_jobs')
-                ->whereColumn('config_server_jobs.server_id', 'servers.id')
-                ->orderByDesc('id')->limit(1), 'success')
+        // Only servers whose latest deployment succeeded (see Server::scopeListedInApps).
+        $servers = Server::listedInApps()
             ->orderByDesc('recommended')->orderBy('country')->orderBy('id')->get();
 
         $proto = config('services.openvpn.proto') === 'tcp' ? 'TCP' : 'UDP';

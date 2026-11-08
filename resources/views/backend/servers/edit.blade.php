@@ -52,7 +52,7 @@
                     <input type="text" name="ip_address" class="form-control" value="{{$server->ip_address}}" required/>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label">{{ admin_lang('Recommended') }} : <span class="text-danger">*</span></label>
+                    <label class="form-label">{{ admin_lang('Recommended (website and old mobile app; not used by the desktop app)') }} : <span class="text-danger">*</span></label>
                     <select name="recommended" id="recommended" class="form-select" required>
                         <option value="" selected disabled>{{ admin_lang('Choose') }}</option>
                         @foreach ($form->recommendOptions as $key => $row)
@@ -85,6 +85,7 @@
                         <option value="openvpn" {{ $vpnType === 'openvpn' ? 'selected' : '' }}>{{ admin_lang('OpenVPN, managed by the panel (users sign in with their account)') }}</option>
                         <option value="openvpn_profile" {{ $vpnType === 'openvpn_profile' ? 'selected' : '' }}>{{ admin_lang('OpenVPN, pasted profile (one shared profile)') }}</option>
                     </select>
+                    <small class="form-hint">{{ admin_lang('Only panel-managed OpenVPN servers appear in the desktop app.') }}</small>
                 </div>
                 <div class="mb-4 ovpn">
                     <label class="form-label">{{ admin_lang('OVPN Config') }} :</label>

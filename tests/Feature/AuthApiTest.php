@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Jobs\RevokeWireGuardPeer;
+use App\Models\Plan;
 use App\Models\User;
 use App\Models\UserLog;
+use App\Models\VpnSession;
 use Illuminate\Support\Facades\Queue;
 
 class AuthApiTest extends ApiTestCase
@@ -88,6 +90,26 @@ class AuthApiTest extends ApiTestCase
             ->getJson('/api/v1/profiles')->assertStatus(401);
     }
 
+    public function test_reset_password_signs_the_client_apps_out()
+    {
+        $user = $this->makeUser(['email' => 's@example.com']);
+        VpnSession::start($user, 'Windows PC', null);
+        $other = $this->makeUser();
+        VpnSession::start($other, 'Not mine', null);
+        $user->forceFill(['verification_code' => '654321', 'verification_code_sent_at' => now()])->save();
+        $this->assertSame(1, VpnSession::where('user_id', $user->id)->count(), 'saving other fields keeps the devices');
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'email' => 's@example.com',
+            'verification_code' => '654321',
+            'new_password' => 'newsecret',
+            'new_password_confirmation' => 'newsecret',
+        ])->assertOk();
+
+        $this->assertSame(0, VpnSession::where('user_id', $user->id)->count());
+        $this->assertSame(1, VpnSession::where('user_id', $other->id)->count());
+    }
+
     public function test_update_profile_only_changes_allowed_fields()
     {
         $user = $this->makeUser(['status' => 1]);
@@ -147,5 +169,16 @@ class AuthApiTest extends ApiTestCase
     {
         $user = $this->makeUser();
         $this->asUser($user)->getJson('/api/v1/plans')->assertOk()->assertJsonCount(2, 'data');
+    }
+
+    public function test_plans_endpoint_returns_an_empty_string_for_plans_without_product_ids()
+    {
+        Plan::create(['name' => 'Web only', 'product_id' => null, 'interval' => 1, 'price' => 4.99, 'is_free' => 0]);
+        $user = $this->makeUser();
+
+        $plans = collect($this->asUser($user)->getJson('/api/v1/plans')->assertOk()->json('data'))->keyBy('name');
+
+        $this->assertSame('', $plans['Web only']['product_id']);
+        $this->assertSame('pro_monthly, pro.monthly.ios', $plans['Pro']['product_id']);
     }
 }

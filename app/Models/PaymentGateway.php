@@ -9,9 +9,26 @@ class PaymentGateway extends Model
 {
     use HasFactory;
 
+    // In-app purchase rows: they verify App Store / Google Play receipts for
+    // the mobile apps (API v1) and can never take a payment on the website.
+    public const IN_APP_ALIASES = ['appstore', 'playstore'];
+
     public function scopeHasCurrency($query)
     {
-        return $query->whereRaw('JSON_CONTAINS(supported_currencies, JSON_ARRAY(?))', [settings('currency')->code]);
+        $code = settings('currency')->code;
+        if ($query->getConnection()->getDriverName() === 'sqlite') {
+            // SQLite (tests) has no JSON_CONTAINS; the column holds a JSON array of codes.
+            return $query->where('supported_currencies', 'like', '%"' . $code . '"%');
+        }
+        return $query->whereRaw('JSON_CONTAINS(supported_currencies, JSON_ARRAY(?))', [$code]);
+    }
+
+    /**
+     * Gateways that can take a payment at the website checkout.
+     */
+    public function scopeForWebCheckout($query)
+    {
+        return $query->whereNotIn('alias', self::IN_APP_ALIASES);
     }
 
     public function scopeActive($query)

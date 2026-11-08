@@ -105,9 +105,37 @@ class TransactionController extends Controller
         }
         $updateTransaction = $transaction->update(['status' => 3]);
         if ($updateTransaction) {
-            toastr()->success(admin_lang('Transaction Canceled Successfully'));
+            if ($this->endPaidSubscription($transaction)) {
+                toastr()->success(admin_lang('Transaction canceled, the user is now on the free plan'));
+            } else {
+                toastr()->success(admin_lang('Transaction Canceled Successfully'));
+            }
             return back();
         }
+    }
+
+    /**
+     * A cancelled payment ends what it paid for: when it was the user's
+     * latest paid transaction and the subscription is still on its (paid)
+     * plan, the subscription moves to the free plan. Cancelling an older
+     * payment leaves the current period alone.
+     */
+    private function endPaidSubscription(Transaction $transaction): bool
+    {
+        $plan = $transaction->plan;
+        $subscription = $transaction->user?->subscription;
+        $freePlan = freePlan();
+        if (!$plan || $plan->isFree() || !$subscription || !$freePlan
+            || (int) $subscription->plan_id !== (int) $plan->id) {
+            return false;
+        }
+        $newerPayment = Transaction::where('user_id', $transaction->user_id)
+            ->paid()->where('id', '>', $transaction->id)->exists();
+        if ($newerPayment) {
+            return false;
+        }
+        $subscription->moveToFreePlan($freePlan);
+        return true;
     }
 
     /**

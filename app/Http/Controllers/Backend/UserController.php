@@ -215,17 +215,7 @@ class UserController extends Controller
             if (is_null($plan)) {
                 return response422(['plan' => [__(admin_lang('Plan not exists'))]]);
             }
-            if ($plan->interval == 1) {
-                $expiry_at = Carbon::now()->addMonth();
-            } else {
-                $expiry_at = Carbon::now()->addYear();
-            }
-            Subscription::create([
-                'user_id' => $user->id,
-                'plan_id' => $plan->id,
-                'expiry_at' => $expiry_at,
-                'is_viewed' => 0,
-            ]);
+            Subscription::startFree($user, $plan);
 
             toastr()->success(admin_lang('Created Successfully'));
             return redirect()->route('admin.users.edit', $user->id);

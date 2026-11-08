@@ -68,6 +68,19 @@ The user added .134 to the new panel; the deploy succeeded (`openvpn-server@serv
 4. **Deploy:** Admin → Servers → Panel-managed OpenVPN + root password. Job `app/Jobs/ConfigOpenVpnServer.php` uses sshpass/ssh. It fails clearly if the port is busy.
 5. **PKI:** the shared CA and static key live in `storage/app/openvpn/` **on the panel server only, not in git**. Back them up; losing them means re-deploying every server.
 6. **tls-crypt is the default** (`OPENVPN_TLS`). With tls-auth, the GFW let the tunnel connect and then dropped all packets after about 25 s.
+7. **Site URL:** Settings > General > "Site URL" (saved as `APP_URL`) must stay equal to the desktop build's `-PanelHost`/`-PanelScheme` (`VITE_PANEL_URL`). The app only opens links that start with that prefix (upgrade, devices), and the deploy job writes `APP_URL` into each server's auth script, so redeploy the servers after changing it.
+
+## Panel vs app (2026-11-09)
+
+What the panel does for the desktop app, and what changed on the panel side:
+- **Sign-in:** `device_name` from the app is stored (e.g. "DESKTOP-1AB2C (Windows)"); without it, Go's User-Agent becomes "Desktop app" (old rows renamed by a migration). Each app sign-in is written to the login history (browser "VPN app", OS from the device name).
+- **Active rule:** one rule, `User::hasActiveService()`, gives the app's `is_active` and the OpenVPN auth check: a subscription that is not cancelled and is free or unexpired. Cancelled or expired paid subscriptions are refused on free servers too (403); a user with no subscription row at all is first put on the free plan (`User::ensureSubscription()`, in session/new, session/status and the OpenVPN auth). Premium servers still need premium.
+- **Password change or reset** (website, mail reset, API v1) deletes the user's `vpn_sessions`: every app device is signed out (model hook in `User::booted`).
+- **Never without a subscription:** Facebook sign-up gets the free plan like normal sign-up (and normal sign-up no longer creates a second row); admin "delete subscription" moves the user to the free plan (an admin suspension, status cancelled, is kept); admin "cancel transaction" does too when it was the user's latest paid transaction and the user is still on its plan. Migrations `2026_11_09_000004/000005` remove duplicate rows (keep the paid row with the latest expiry, else the newest) and give users without a row the free plan (`App\Services\SubscriptionRepair`). A renewal paid after the user was moved to free puts them back on the paid plan from now. Facebook sign-up of a new user now depends on "registration", not on "email verification".
+- **Plan lengths:** `Plan::expiryFrom()` (weekly, monthly, 6 months, yearly) is used by checkout, Admin > Subscriptions > Add and Admin > Users > Create.
+- **Servers:** only *panel-managed OpenVPN* servers whose last deploy succeeded are in the app (`Server::scopeListedInApps`); the user dashboard lists the same servers. "Recommended" is not used by the desktop app.
+- **Plans and payments:** the plan "product IDs" field is only for App Store / Google Play (optional, no longer shown on the pricing page; API v1 `plans` returns "" for an empty one). The Appstore/Playstore gateway rows are never offered at web checkout. A paid plan can be created with no web gateway for the currency (warning only).
+- **Mails:** `subscriptions:send-reminders` (daily 10:05) sends "about to expire" once per expiry date; `subscriptions:update-expired` sends "expired" when it moves a paid plan to free (not for suspended subscriptions). Both skip subscriptions an App Store / Google Play purchase covers (`iap_purchases` row for that user and plan with `expires_at` >= the expiry date), and both respect the mail template on/off switch. "Expired reminder" and "delete expired" settings are not used.
 
 Main panel files:
 - `app/Http/Controllers/Api/Client/*`

@@ -23,6 +23,20 @@ class Server extends Model
         $query->where('is_premium', self::STATUS_PREMIUM);
     }
 
+    /**
+     * The servers the client apps list (v5/servers.json): enabled,
+     * panel-managed OpenVPN, and the latest deployment succeeded. A server
+     * whose deploy failed (wrong password, changed host key, port in use) has
+     * no working OpenVPN, and the apps would keep trying it.
+     */
+    public function scopeListedInApps($query)
+    {
+        $query->where('status', 1)->where('is_ovpn', 1)->where('ovpn_managed', 1)
+            ->where(fn($q) => $q->selectRaw('status')->from('config_server_jobs')
+                ->whereColumn('config_server_jobs.server_id', 'servers.id')
+                ->orderByDesc('id')->limit(1), 'success');
+    }
+
     public function printStatus()
     {
         return $this->status == 1 ? 'Enable' : 'Disable';

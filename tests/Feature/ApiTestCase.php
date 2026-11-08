@@ -8,6 +8,7 @@ use App\Models\Settings;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 abstract class ApiTestCase extends TestCase
@@ -25,6 +26,8 @@ abstract class ApiTestCase extends TestCase
         $this->freePlan = Plan::create(['name' => 'Free', 'product_id' => 'free', 'interval' => 1, 'price' => 0, 'is_free' => 1]);
         $this->premiumPlan = Plan::create(['name' => 'Pro', 'product_id' => 'pro_monthly, pro.monthly.ios', 'interval' => 1, 'price' => 9.99, 'is_free' => 0]);
         $this->setEmailVerification(false);
+        // Logins write the login history, which looks the IP up on ip-api.com; skip that.
+        Cache::put('ipinfo:127.0.0.1', (object) ['status' => 'success', 'query' => '127.0.0.1', 'country' => 'Japan', 'countryCode' => 'JP', 'city' => 'Tokyo'], now()->addHour());
     }
 
     protected function setEmailVerification(bool $required): void

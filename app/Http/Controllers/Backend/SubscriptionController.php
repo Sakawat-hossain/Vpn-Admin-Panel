@@ -78,15 +78,10 @@ class SubscriptionController extends Controller
             toastr()->error(admin_lang('Plan not exists'));
             return back();
         }
-        if ($plan->interval == 1) {
-            $expiry_at = Carbon::now()->addMonth();
-        } else {
-            $expiry_at = Carbon::now()->addYear();
-        }
         $createSubscription = Subscription::create([
             'user_id' => $user->id,
             'plan_id' => $plan->id,
-            'expiry_at' => $expiry_at,
+            'expiry_at' => $plan->expiryFrom(),
             'is_viewed' => 1,
         ]);
         if ($createSubscription) {
@@ -158,6 +153,15 @@ class SubscriptionController extends Controller
      */
     public function destroy(Subscription $subscription)
     {
+        // Without a subscription the apps refuse to connect, so the user
+        // goes back to the free plan instead (when there is one). The status
+        // is kept: a suspended (cancelled) subscription stays suspended.
+        $freePlan = freePlan();
+        if ($freePlan) {
+            $subscription->moveToFreePlan($freePlan);
+            toastr()->success(admin_lang('Subscription removed, the user is now on the free plan'));
+            return back();
+        }
         $subscription->delete();
         toastr()->success(admin_lang('Deleted successfully'));
         return back();

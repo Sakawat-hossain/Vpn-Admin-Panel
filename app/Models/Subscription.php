@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\RevokeWireGuardPeer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,85 @@ class Subscription extends Model
 
     public const STATUS_ACTIVE = 1;
     public const STATUS_CANCELLED = 0;
+
+    protected static function booted()
+    {
+        // The reminder flags belong to one expiry date: a new expiry date
+        // (renewal, plan change, admin edit) may be reminded again.
+        static::saving(function (Subscription $subscription) {
+            if ($subscription->exists && $subscription->isDirty('expiry_at')) {
+                if (!$subscription->isDirty('about_to_expire_reminder')) {
+                    $subscription->about_to_expire_reminder = false;
+                }
+                if (!$subscription->isDirty('expired_reminder')) {
+                    $subscription->expired_reminder = false;
+                }
+            }
+        });
+    }
+
+    /**
+     * Put a user without a subscription on the free plan (sign-up). Returns
+     * the user's existing subscription if there already is one, and null
+     * when no free plan is configured.
+     */
+    public static function startFree(User $user, ?Plan $plan = null): ?self
+    {
+        $plan = $plan ?: freePlan();
+        if (!$plan) {
+            return null;
+        }
+        $existing = $user->subscription()->first();
+        if ($existing) {
+            return $existing;
+        }
+        return static::create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'expiry_at' => $plan->expiryFrom(),
+            'is_viewed' => 0,
+        ]);
+    }
+
+    /**
+     * Move this subscription to the free plan (premium expired, cancelled or
+     * removed by an admin). The free plan's own interval sets the expiry
+     * unless one is given; the status is left as it is. A WireGuard config
+     * keeps working until its peer
+     * is removed, so leaving premium revokes the user's peer on a premium
+     * server.
+     */
+    public function moveToFreePlan(Plan $freePlan, ?\DateTimeInterface $expiryAt = null): void
+    {
+        $wasPremium = $this->plan && !$this->plan->isFree();
+
+        $this->update([
+            'plan_id' => $freePlan->id,
+            'expiry_at' => $expiryAt ?? $freePlan->expiryFrom(),
+        ]);
+        $this->setRelation('plan', $freePlan);
+
+        $user = $this->user;
+        if ($wasPremium && $user && $user->servers && $user->servers->isPremium()) {
+            RevokeWireGuardPeer::forUser($user);
+        }
+    }
+
+    /**
+     * Whether an App Store / Google Play purchase covers this subscription up
+     * to its expiry date. Store subscriptions renew on their own (the app
+     * re-validates the receipt), so the reminder and "expired" mails skip them.
+     */
+    public function isCoveredByStorePurchase(): bool
+    {
+        if (!$this->expiry_at) {
+            return false;
+        }
+        return IapPurchase::where('user_id', $this->user_id)
+            ->where('plan_id', $this->plan_id)
+            ->where('expires_at', '>=', $this->expiry_at)
+            ->exists();
+    }
 
     public function scopeExpired($query)
     {

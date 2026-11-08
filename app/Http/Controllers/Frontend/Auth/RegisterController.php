@@ -140,13 +140,7 @@ class RegisterController extends Controller
         $data['api_token'] = hash('sha256', Str::random(60));
 
         $user = $this->create($data);
-        $expiry_at = Carbon::now();
-        $createSubscription = Subscription::create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'expiry_at' => $expiry_at,
-            'is_viewed' => 0,
-        ]);
+        Subscription::startFree($user, $plan);
 
         event(new Registered($user));
         $this->guard()->login($user);
@@ -203,6 +197,11 @@ class RegisterController extends Controller
     {
         abort_if($token != session('provider_data'), 401);
         $this->validator($request->all())->validate();
+        $plan = freePlan();
+        if (is_null($plan)) {
+            toastr()->error(admin_lang('Plan does not exist'));
+            return back()->withInput($request->except('password', 'password_confirmation'));
+        }
         $user = User::create([
             'name' => $request->firstname . ' ' . $request->lastname,
             'firstname' => $request->firstname,
@@ -212,6 +211,7 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
         ]);
         if ($user) {
+            Subscription::startFree($user, $plan);
             $user->sendEmailVerificationNotification();
             $data = decrypt(session('provider_data'));
             $provider = @$data['provider'];

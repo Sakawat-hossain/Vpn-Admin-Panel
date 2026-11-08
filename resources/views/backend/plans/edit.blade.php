@@ -34,12 +34,12 @@
                 <li class="list-group-item">
                     <div class="row g-2 align-items-center">
                         <div class="col-12 col-lg-8">
-                            <label class="col-form-label d-block"><strong>{{ admin_lang('Product Id') }} : <span
-                                        class="text-danger">*</span></strong></label>
+                            <label class="col-form-label d-block"><strong>{{ admin_lang('App Store / Google Play product IDs (mobile apps only)') }} :</strong></label>
+                            <small>{{ admin_lang('Optional. The in-app purchase product IDs of this plan, separated by commas. Leave empty for plans sold on the website only.') }}</small>
                         </div>
                         <div class="col-12 col-lg-4">
-                            <textarea name="product_id" class="form-control"
-                                required>{{ $plan->product_id }}</textarea>
+                            <textarea name="product_id" class="form-control" maxlength="150"
+                                placeholder="{{ admin_lang('e.g. pro_monthly, pro.monthly.ios') }}">{{ $plan->product_id }}</textarea>
                         </div>
                     </div>
                 </li>
@@ -92,8 +92,8 @@
                 <li class="plan-require-login list-group-item {{ $plan->isFree() ? '' : 'd-none' }}">
                     <div class="row align-items-center">
                         <div class="col-8 col-lg-8">
-                            <label class="col-form-label d-block"><strong>{{ admin_lang('Require Login') }} :</strong></label>
-                            <small>{{ admin_lang('Without login, the guests will be able to generate the images.') }}</small>
+                            <label class="col-form-label d-block"><strong>{{ admin_lang('Require Login (mobile app only)') }} :</strong></label>
+                            <small>{{ admin_lang('Sent to the mobile app with the plan list. The desktop app always needs an account; on the website it only hides the sign-in button of this free plan when off.') }}</small>
                         </div>
                         <div class="col-4 col-lg-4">
                             <input type="checkbox" name="login_require" data-toggle="toggle"
@@ -105,8 +105,8 @@
                 <li class="list-group-item">
                     <div class="row align-items-center">
                         <div class="col-8 col-lg-8">
-                            <label class="col-form-label d-block"><strong>{{ admin_lang('Show advertisements') }} :</strong></label>
-                            <small>{{ admin_lang('Show the advertisements (Yes/No)') }}</small>
+                            <label class="col-form-label d-block"><strong>{{ admin_lang('Show advertisements (mobile app and website)') }} :</strong></label>
+                            <small>{{ admin_lang('Sent to the mobile app with the plan list, and shows the website ad slots to users on this plan. The desktop app shows no ads.') }}</small>
                         </div>
                         <div class="col-4 col-lg-4">
                             <input type="checkbox" name="advertisements" data-toggle="toggle"

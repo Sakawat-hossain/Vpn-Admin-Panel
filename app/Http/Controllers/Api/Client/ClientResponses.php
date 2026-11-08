@@ -36,10 +36,9 @@ trait ClientResponses
         $subscription = $user->subscription;
         $plan = $subscription?->plan;
         $premium = $user->hasPremiumAccess();
-        $active = $subscription && $plan && !$subscription->isCancelled() && ($plan->isFree() || $subscription->isActive());
 
         return [
-            'is_active' => (bool) $active,
+            'is_active' => $user->hasActiveService(),
             'active_until' => $subscription && $subscription->expiry_at && !$plan?->isFree() ? $subscription->expiry_at->getTimestamp() : 0,
             'current_plan' => $plan->name ?? '',
             'payment_method' => '',

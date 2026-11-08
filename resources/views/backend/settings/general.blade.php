@@ -20,6 +20,7 @@
                         <label for="small-input" class="block mb-2 text-sm font-medium">{{ admin_lang('Site URL') }} : <span class="text-danger">*</span></label>
                         <input type="text" name="general[site_url]" id="small-input" class="form-control"
                             value="{{ $settings->general->site_url }}" required>
+                        <small class="form-hint">{{ admin_lang('Saved as APP_URL. Keep it equal to the panel URL the desktop app was built with: the app only opens links that start with it, and OpenVPN servers check logins at this URL (redeploy them after a change).') }}</small>
                     </div>
                     <div class="col-lg-6">
                         <label for="small-input" class="block mb-2 text-sm font-medium">{{ admin_lang('Contact email') }} : <span class="text-danger">*</span></label>
@@ -153,6 +154,7 @@
                                         {{ $settings->subscription->about_to_expire_reminder == 14 ? 'selected' : '' }}>
                                         {{ admin_lang('Before 14 days') }}</option>
                                 </select>
+                                <small class="form-hint">{{ admin_lang('A daily task e-mails users on a paid plan once, this many days before it ends (mail template "Subscription about to expire").') }}</small>
                             </div>
                             <div class="col-lg-12">
                                 <label class="form-label">{{ admin_lang('Subscription Expired reminder') }} : <span
@@ -174,6 +176,7 @@
                                         {{ $settings->subscription->expired_reminder == 14 ? 'selected' : '' }}>
                                         {{ admin_lang('After 14 days') }}</option>
                                 </select>
+                                <small class="form-hint">{{ admin_lang('Not used: an expired paid plan moves to the free plan at once, and the "expired" e-mail is sent then.') }}</small>
                             </div>
                             <div class="col-lg-12">
                                 <label class="form-label">{{ admin_lang('Delete Expired subscriptions') }} : <span
@@ -201,6 +204,7 @@
                                         {{ $settings->subscription->delete_expired == 365 ? 'selected' : '' }}>
                                         {{ admin_lang('After 1 Year') }}</option>
                                 </select>
+                                <small class="form-hint">{{ admin_lang('Not used: expired subscriptions are never deleted, they move to the free plan.') }}</small>
                             </div>
                         </div>
                     </div>

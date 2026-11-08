@@ -69,6 +69,11 @@ class OpenVpnAuthController extends Controller
         if (emailVerificationRequired() && is_null($user->email_verified_at)) {
             return response()->json(['message' => 'Email not verified'], 403);
         }
+        // The same rule as "is_active" in the apps (ClientResponses::serviceStatus).
+        $user->ensureSubscription();
+        if (!$user->hasActiveService()) {
+            return response()->json(['message' => 'No active subscription'], 403);
+        }
         if (!$user->canUseServer($server)) {
             return response()->json(['message' => 'Premium subscription required'], 403);
         }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserLog;
 use App\Models\VpnSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -24,6 +25,12 @@ class SessionController extends Controller
 
     private const MAX_LOGIN_ATTEMPTS = 10;
     private const LIMIT_WINDOW_SECONDS = 600;
+
+    // Default User-Agent of Go's HTTP client, sent by the desktop app's daemon.
+    private const GO_USER_AGENT = 'Go-http-client';
+    public const DESKTOP_APP = 'Desktop app';
+    // What the login history shows as the "browser" of an app sign-in.
+    public const APP_LOG_BROWSER = 'VPN app';
 
     public function create(Request $request)
     {
@@ -63,6 +70,7 @@ class SessionController extends Controller
             }
         }
         RateLimiter::clear($limiterKey);
+        $user->ensureSubscription();
 
         VpnSession::forgetStale($user);
         $limit = deviceLimit();
@@ -82,6 +90,7 @@ class SessionController extends Controller
         }
 
         [$session, $token, $vpnPassword] = VpnSession::start($user, $this->deviceName($request), $request->ip());
+        $this->logLogin($user, $session);
 
         return response()->json([
             'status' => self::SUCCESS,
@@ -101,6 +110,7 @@ class SessionController extends Controller
             return $this->clientError(self::SESSION_NOT_FOUND, __('Session not found'));
         }
         $session->touchLastSeen($request->ip());
+        $session->user->ensureSubscription();
         return response()->json([
             'status' => self::SUCCESS,
             'device_name' => $session->device_name,
@@ -139,12 +149,38 @@ class SessionController extends Controller
         return ['status' => 400, 'message' => __('WireGuard is not available in this app yet, please use OpenVPN')];
     }
 
+    /**
+     * The name the app sends ("DESKTOP-1AB2C (Windows)"), else the
+     * User-Agent. The desktop app's daemon is written in Go, whose default
+     * User-Agent ("Go-http-client/1.1") means nothing to the user.
+     */
     private function deviceName(Request $request): ?string
     {
         $name = trim((string) $request->input('device_name'));
         if ($name === '') {
             $name = trim(Str::limit((string) $request->userAgent(), 60, ''));
+            if (Str::startsWith($name, self::GO_USER_AGENT)) {
+                $name = self::DESKTOP_APP;
+            }
         }
         return $name !== '' ? $name : null;
+    }
+
+    /**
+     * Log the sign-in in the user's login history (Admin > Users > logs),
+     * marked as the app in the browser field.
+     */
+    private function logLogin(User $user, VpnSession $session): void
+    {
+        // "DESKTOP-1AB2C (Windows)" -> "Windows"; otherwise the OS is read from the User-Agent.
+        $os = null;
+        if ($session->device_name && preg_match('/\(([^()]+)\)\s*$/', $session->device_name, $match)) {
+            $os = trim($match[1]);
+        }
+        try {
+            UserLog::recordLogin($user, self::APP_LOG_BROWSER, $os);
+        } catch (\Throwable $e) {
+            report($e); // the login itself must not fail on the history
+        }
     }
 }
