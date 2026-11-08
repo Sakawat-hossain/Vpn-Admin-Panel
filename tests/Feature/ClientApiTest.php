@@ -45,7 +45,16 @@ class ClientApiTest extends ApiTestCase
     {
         $server = $this->makeServer(array_merge(['is_ovpn' => 1, 'ovpn_managed' => 1, 'country' => 'Japan', 'state' => 'Tokyo'], $attributes));
         $server->forceFill(['ovpn_secret' => 'server-secret-' . $server->id])->save();
+        $this->deployJob($server, 'success');
         return $server;
+    }
+
+    private function deployJob(Server $server, string $status): void
+    {
+        (new \App\Models\ConfigServerJob())->forceFill([
+            'server_id' => $server->id, 'ip' => $server->ip_address, 'ssh_port' => 22,
+            'vps_username' => 'root', 'vps_password' => '', 'status' => $status,
+        ])->save();
     }
 
     private function auth(Server $server, string $username, string $password, ?string $secret = null)
@@ -164,6 +173,19 @@ class ClientApiTest extends ApiTestCase
         $this->assertStringContainsString('BEGIN OpenVPN Static key V1', $response->json('config.openvpn.tls_auth'));
         $this->assertSame('tls-crypt', $response->json('config.openvpn.tls_mode'));
         $this->assertStringNotContainsString('server-secret', $response->getContent());
+    }
+
+    public function test_server_list_leaves_out_servers_whose_latest_deploy_failed()
+    {
+        $ok = $this->managedServer(['state' => 'Osaka']);
+        $broken = $this->managedServer(['state' => 'Tokyo']);
+        $this->deployJob($broken, 'failed');          // a redeploy failed after an earlier success
+        $never = $this->makeServer(['is_ovpn' => 1, 'ovpn_managed' => 1, 'country' => 'Japan', 'state' => 'Kyoto']);
+        $this->deployJob($never, 'running');
+
+        $response = $this->withHeaders(['x-api-key' => self::API_KEY])->getJson('/api/client/v5/servers.json')->assertOk();
+        $this->assertSame(['Osaka'], array_column($response->json('openvpn'), 'city'));
+        $this->assertSame('server-' . $ok->id, $response->json('openvpn.0.gateway'));
     }
 
     public function test_server_list_groups_servers_of_one_city_into_one_location()

@@ -21,7 +21,13 @@ class ServerListController extends Controller
 {
     public function servers(OpenVpnPki $pki)
     {
+        // Only servers whose latest deployment succeeded: a server whose deploy failed (wrong
+        // password, changed host key, port in use) has no working OpenVPN, and the apps would
+        // keep trying it.
         $servers = Server::where('status', 1)->where('is_ovpn', 1)->where('ovpn_managed', 1)
+            ->where(fn($q) => $q->selectRaw('status')->from('config_server_jobs')
+                ->whereColumn('config_server_jobs.server_id', 'servers.id')
+                ->orderByDesc('id')->limit(1), 'success')
             ->orderByDesc('recommended')->orderBy('country')->orderBy('id')->get();
 
         $proto = config('services.openvpn.proto') === 'tcp' ? 'TCP' : 'UDP';

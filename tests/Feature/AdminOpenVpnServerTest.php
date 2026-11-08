@@ -70,6 +70,23 @@ class AdminOpenVpnServerTest extends TestCase
         $this->assertSame(1, ConfigServerJob::where('server_id', $server->id)->count());
     }
 
+    public function test_a_second_managed_openvpn_server_on_the_same_ip_is_refused()
+    {
+        $this->admin()->post(route('admin.servers.store'), $this->serverForm())->assertRedirect();
+        $first = Server::firstOrFail();
+
+        $this->admin()->post(route('admin.servers.store'), $this->serverForm(['is_premium' => '1']));
+        $this->assertSame(1, Server::count(), 'the second server on the same IP was refused');
+
+        // editing the existing server keeps its own IP
+        $this->admin()->put(route('admin.servers.update', $first->id), $this->serverForm(['is_premium' => '1']));
+        $this->assertSame(1, (int) $first->fresh()->is_premium, 'editing keeps its own IP');
+
+        // a WireGuard or profile server on that IP is still allowed
+        $this->admin()->post(route('admin.servers.store'), $this->serverForm(['vpn_type' => 'wireguard']));
+        $this->assertSame(2, Server::count(), 'a WireGuard server on that IP is still allowed');
+    }
+
     public function test_server_types_map_to_the_right_flags()
     {
         $this->admin()->post(route('admin.servers.store'), $this->serverForm(['vpn_type' => 'wireguard', 'ip_address' => 'vpn.example.com']));

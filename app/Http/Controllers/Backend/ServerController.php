@@ -222,7 +222,7 @@ class ServerController extends Controller
      */
     public function update(Request $request, Server $server)
     {
-        $validator = Validator::make($request->all(), $this->rules($request));
+        $validator = Validator::make($request->all(), $this->rules($request, $server));
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
                 toastr()->error($error);
@@ -261,7 +261,7 @@ class ServerController extends Controller
     public const TYPE_OPENVPN = 'openvpn';
     public const TYPE_OPENVPN_PROFILE = 'openvpn_profile';
 
-    private function rules(Request $request): array
+    private function rules(Request $request, ?Server $editing = null): array
     {
         $managedOpenVpn = $request->vpn_type === self::TYPE_OPENVPN;
         return [
@@ -271,11 +271,20 @@ class ServerController extends Controller
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'status' => ['required', 'in:0,1'],
-            'ip_address' => ['required', 'string', 'max:191', function ($attribute, $value, $fail) use ($managedOpenVpn) {
+            'ip_address' => ['required', 'string', 'max:191', function ($attribute, $value, $fail) use ($managedOpenVpn, $editing) {
                 if ($managedOpenVpn) {
                     // The client apps connect to the host by IP.
                     if (!filter_var($value, FILTER_VALIDATE_IP)) {
                         $fail(admin_lang('A panel-managed OpenVPN server needs an IP address, not a hostname'));
+                        return;
+                    }
+                    // One VPS runs one panel-managed OpenVPN server: deploying a second entry with the
+                    // same IP rewrites the first one's configuration (its server id and login secret).
+                    $other = Server::where('ip_address', $value)->where('is_ovpn', 1)->where('ovpn_managed', 1)
+                        ->when($editing, fn($q) => $q->where('id', '!=', $editing->id))->first();
+                    if ($other) {
+                        $fail(admin_lang('This VPS already has a panel-managed OpenVPN server') . ' (#' . $other->id . '). ' .
+                            admin_lang('Edit that server instead; change its Premium setting there.'));
                     }
                 } elseif (!filter_var($value, FILTER_VALIDATE_IP) && !filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
                     $fail(admin_lang('The IP address must be a valid IP or hostname'));
